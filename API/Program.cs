@@ -1,7 +1,10 @@
 using API.Extensions;
 using API.Services;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.AddSerilogLogging();
 
 // Registrer tjenester via Extension-metodene våre
 builder.Services.AddDbContext(builder.Configuration);
@@ -13,9 +16,13 @@ builder.Services.AddHostedService<OpenIddictSeeder>();
 
 var app = builder.Build();
 
+app.UseSerilogRequestLogging();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+await IdentitySeeder.SeedAsync(app.Services);
 
 app.Run();

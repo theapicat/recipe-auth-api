@@ -11,21 +11,14 @@ namespace API.Controllers;
 
 [ApiController]
 [Route("api/account")]
-public class AccountController : ControllerBase
+public class AccountController(UserManager<ApplicationUser> userManager) : ControllerBase
 {
-    private readonly UserManager<ApplicationUser> _userManager;
-
-    public AccountController(UserManager<ApplicationUser> userManager)
-    {
-        _userManager = userManager;
-    }
-
     // --- REGISTRERING ---
     [HttpPost("register")]
     [Consumes("application/x-www-form-urlencoded", "application/json")]
     public async Task<IActionResult> Register([FromForm] RegisterRequest request)
     {
-        var existingUser = await _userManager.FindByEmailAsync(request.Email);
+        var existingUser = await userManager.FindByEmailAsync(request.Email);
         if (existingUser != null)
         {
             return BadRequest(new { Message = "E-postadressen er allerede i bruk." });
@@ -39,11 +32,14 @@ public class AccountController : ControllerBase
             LastName = request.LastName
         };
 
-        var result = await _userManager.CreateAsync(user, request.Password);
+        var result = await userManager.CreateAsync(user, request.Password);
         if (!result.Succeeded)
         {
             return BadRequest(result.Errors);
         }
+
+        // Tildel alltid standardrollen "user"
+        await userManager.AddToRoleAsync(user, "user");
 
         var response = await MapToUserProfileResponseAsync(user);
         return Ok(response);
@@ -73,7 +69,7 @@ public class AccountController : ControllerBase
         user.LastName = request.LastName;
         user.AvatarUrl = request.AvatarUrl ?? string.Empty;
 
-        var result = await _userManager.UpdateAsync(user);
+        var result = await userManager.UpdateAsync(user);
         if (!result.Succeeded)
         {
             return BadRequest(result.Errors);
@@ -91,7 +87,7 @@ public class AccountController : ControllerBase
         var user = await GetCurrentUserAsync();
         if (user == null) return NotFound(new { Message = "Bruker ikke funnet." });
 
-        var result = await _userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
+        var result = await userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
         if (!result.Succeeded)
         {
             return BadRequest(result.Errors);
@@ -108,7 +104,7 @@ public class AccountController : ControllerBase
         var user = await GetCurrentUserAsync();
         if (user == null) return NotFound(new { Message = "Bruker ikke funnet." });
 
-        var result = await _userManager.DeleteAsync(user);
+        var result = await userManager.DeleteAsync(user);
         if (!result.Succeeded)
         {
             return BadRequest(result.Errors);
@@ -120,7 +116,7 @@ public class AccountController : ControllerBase
     // --- HJELPEMETODER ---
     private async Task<UserProfileResponse> MapToUserProfileResponseAsync(ApplicationUser user)
     {
-        var roles = await _userManager.GetRolesAsync(user);
+        var roles = await userManager.GetRolesAsync(user);
 
         return new UserProfileResponse
         {
@@ -130,7 +126,7 @@ public class AccountController : ControllerBase
             FirstName = user.FirstName,
             LastName = user.LastName,
             AvatarUrl = user.AvatarUrl,
-            Role = roles.FirstOrDefault() ?? "User",
+            Role = roles.FirstOrDefault() ?? "user",
             IsEmailConfirmed = user.EmailConfirmed,
             CreatedAt = user.CreatedAt,
             LastModifiedAt = user.LastModifiedAt
@@ -148,6 +144,6 @@ public class AccountController : ControllerBase
             return null;
         }
 
-        return await _userManager.FindByIdAsync(userId.ToString());
+        return await userManager.FindByIdAsync(userId.ToString());
     }
 }

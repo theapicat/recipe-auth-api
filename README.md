@@ -236,14 +236,27 @@ export async function loginUser(email: string, password: string) {
 
 ```bash
 dotnet ef database update
-
 ```
 
 3. **Kjør applikasjonen**:
 
 ```bash
 dotnet watch
-
 ```
 
 API-et lytter på **`http://localhost:5001`** og er tilgjengelig via Gateway på **`http://localhost:5000/api/auth/*`**.
+
+
+---
+
+## 🚧 Work in Progress (Planlagte Funksjoner)
+
+Følgende funksjonalitet og endepunkter er under vurdering og planlagt for fremtidige versjoner:
+
+| Endepunkt (Gjennom Gateway) | Metode | Status | Beskrivelse |
+| --- | --- | --- | --- |
+| `/api/auth/account/recover` | `POST` | 🚧 Planlagt | Genererer token/magic link for tilbakestilling og sender e-post til bruker. |
+| `/api/auth/account/reset-password` | `POST` | 🚧 Planlagt | Validerer token fra e-post og oppdaterer passordet for uinnloggede brukere. |
+| `/api/auth/account/confirm-email` | `POST` | 🚧 Planlagt | Bekrefter og verifiserer brukerens e-postadresse via mottatt token. |
+| `/api/auth/account/external-login` | `GET` | 🚧 Planlagt | Initiere OAuth2-innloggingsflyt mot Google. |
+| `/api/auth/account/external-callback` | `GET` | 🚧 Planlagt | Håndterer retursvar fra Google og utsteder JWT-token via OpenIddict. |
