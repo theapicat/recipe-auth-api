@@ -6,12 +6,11 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using OpenIddict.Abstractions;
 using OpenIddict.Validation.AspNetCore;
-using RegisterRequest = API.DTOs.RegisterRequest;
 
 namespace API.Controllers;
 
 [ApiController]
-[Route("~/account")]
+[Route("api/account")]
 public class AccountController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
@@ -21,7 +20,7 @@ public class AccountController : ControllerBase
         _userManager = userManager;
     }
 
-// --- REGISTRERING ---
+    // --- REGISTRERING ---
     [HttpPost("register")]
     [Consumes("application/x-www-form-urlencoded", "application/json")]
     public async Task<IActionResult> Register([FromForm] RegisterRequest request)
@@ -46,18 +45,8 @@ public class AccountController : ControllerBase
             return BadRequest(result.Errors);
         }
 
-        var roles = await _userManager.GetRolesAsync(user);
-
-        return Ok(new UserProfileResponse
-        {
-            UserId = user.Id.ToString(),
-            UserName = user.UserName ?? string.Empty,
-            Email = user.Email ?? string.Empty,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            AvatarUrl = user.AvatarUrl,
-            Role = roles.FirstOrDefault() ?? "User"
-        });
+        var response = await MapToUserProfileResponseAsync(user);
+        return Ok(response);
     }
 
     // --- HENT MIN PROFIL ---
@@ -68,18 +57,8 @@ public class AccountController : ControllerBase
         var user = await GetCurrentUserAsync();
         if (user == null) return NotFound(new { Message = "Bruker ikke funnet." });
 
-        var roles = await _userManager.GetRolesAsync(user);
-
-        return Ok(new UserProfileResponse
-        {
-            UserId = user.Id.ToString(),
-            UserName = user.UserName ?? string.Empty,
-            Email = user.Email ?? string.Empty,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            AvatarUrl = user.AvatarUrl,
-            Role = roles.FirstOrDefault() ?? "User"
-        });
+        var response = await MapToUserProfileResponseAsync(user);
+        return Ok(response);
     }
 
     // --- OPPDATER PROFIL ---
@@ -100,7 +79,8 @@ public class AccountController : ControllerBase
             return BadRequest(result.Errors);
         }
 
-        return Ok(new { Message = "Profil oppdatert med hell.", UserId = user.Id });
+        var response = await MapToUserProfileResponseAsync(user);
+        return Ok(response);
     }
 
     // --- BYTT PASSORD ---
@@ -137,7 +117,26 @@ public class AccountController : ControllerBase
         return Ok(new { Message = "Kontoen din er slettet." });
     }
 
-    // Hjelpemetode for å hente den innloggede brukeren fra JWT-tokenet
+    // --- HJELPEMETODER ---
+    private async Task<UserProfileResponse> MapToUserProfileResponseAsync(ApplicationUser user)
+    {
+        var roles = await _userManager.GetRolesAsync(user);
+
+        return new UserProfileResponse
+        {
+            UserId = user.Id.ToString(),
+            UserName = user.UserName ?? string.Empty,
+            Email = user.Email ?? string.Empty,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            AvatarUrl = user.AvatarUrl,
+            Role = roles.FirstOrDefault() ?? "User",
+            IsEmailConfirmed = user.EmailConfirmed,
+            CreatedAt = user.CreatedAt,
+            LastModifiedAt = user.LastModifiedAt
+        };
+    }
+
     private async Task<ApplicationUser?> GetCurrentUserAsync()
     {
         var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier) 

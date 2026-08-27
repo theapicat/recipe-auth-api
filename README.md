@@ -13,7 +13,7 @@ Auth API-et kjører lokalt på **port 5001**. Klienter kommuniserer med tjeneste
 | `/api/auth/connect/token` | `POST` | `application/x-www-form-urlencoded` | Anonym | Utsteder og fornyer JWT access tokens og refresh tokens via OpenIddict. |
 | `/api/auth/account/register` | `POST` | `application/x-www-form-urlencoded` / `application/json` | Anonym | Registrerer ny bruker og returnerer `UserProfileResponse`. |
 | `/api/auth/account/me` | `GET` | *Ingen* | Bearer Token | Henter profilinformasjon for den innloggede brukeren (`UserProfileResponse`). |
-| `/api/auth/account/profile` | `PUT` | `application/json` | Bearer Token | Oppdaterer fornavn, etternavn og avatar. |
+| `/api/auth/account/profile` | `PUT` | `application/json` | Bearer Token | Oppdaterer fornavn, etternavn og avatar, og returnerer oppdatert `UserProfileResponse`. |
 | `/api/auth/account/change-password` | `POST` | `application/json` | Bearer Token | Endrer passord for innlogget bruker. |
 | `/api/auth/account/me` | `DELETE` | *Ingen* | Bearer Token | Permanent sletting av brukerens konto. |
 
@@ -54,7 +54,7 @@ public class RegisterRequest
 
 ### 2. `UserProfileResponse`
 
-Standard respons som returneres både ved fullført registrering (`POST /account/register`) og profilhenting (`GET /account/me`).
+Standard respons som returneres ved fullført registrering (`POST /account/register`), ved profilhenting (`GET /account/me`) og ved profiloppdatering (`PUT /account/profile`).
 
 ```csharp
 public class UserProfileResponse
@@ -66,6 +66,9 @@ public class UserProfileResponse
     public string LastName { get; set; } = string.Empty;
     public string? AvatarUrl { get; set; }
     public string Role { get; set; } = string.Empty;
+    public bool IsEmailConfirmed { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime LastModifiedAt { get; set; }
 }
 
 ```
@@ -77,10 +80,10 @@ public class UserProfileResponse
 ```csharp
 public class UpdateProfileRequest
 {
-    [Required]
+    [Required(ErrorMessage = "Fornavn er påkrevd.")]
     public string FirstName { get; set; } = string.Empty;
 
-    [Required]
+    [Required(ErrorMessage = "Etternavn er påkrevd.")]
     public string LastName { get; set; } = string.Empty;
 
     public string? AvatarUrl { get; set; }
