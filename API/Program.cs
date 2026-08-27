@@ -1,4 +1,5 @@
 using API.Extensions;
+using API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,6 +9,7 @@ builder.Services.AddCustomIdentityAndOpenIddict(builder.Configuration);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddHostedService<OpenIddictSeeder>();
 
 var app = builder.Build();
 

@@ -6,11 +6,12 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using OpenIddict.Abstractions;
 using OpenIddict.Validation.AspNetCore;
+using RegisterRequest = API.DTOs.RegisterRequest;
 
 namespace API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("~/account")]
 public class AccountController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
@@ -20,9 +21,10 @@ public class AccountController : ControllerBase
         _userManager = userManager;
     }
 
-    // --- REGISTRERING (Anonym) ---
+// --- REGISTRERING ---
     [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+    [Consumes("application/x-www-form-urlencoded", "application/json")]
+    public async Task<IActionResult> Register([FromForm] RegisterRequest request)
     {
         var existingUser = await _userManager.FindByEmailAsync(request.Email);
         if (existingUser != null)
@@ -46,7 +48,7 @@ public class AccountController : ControllerBase
 
         var roles = await _userManager.GetRolesAsync(user);
 
-        return Ok(new UserCreatedResponse
+        return Ok(new UserProfileResponse
         {
             UserId = user.Id.ToString(),
             UserName = user.UserName ?? string.Empty,
@@ -68,7 +70,7 @@ public class AccountController : ControllerBase
 
         var roles = await _userManager.GetRolesAsync(user);
 
-        return Ok(new LoginResponse
+        return Ok(new UserProfileResponse
         {
             UserId = user.Id.ToString(),
             UserName = user.UserName ?? string.Empty,
@@ -90,7 +92,7 @@ public class AccountController : ControllerBase
 
         user.FirstName = request.FirstName;
         user.LastName = request.LastName;
-        user.AvatarUrl = request.AvatarUrl;
+        user.AvatarUrl = request.AvatarUrl ?? string.Empty;
 
         var result = await _userManager.UpdateAsync(user);
         if (!result.Succeeded)
@@ -138,7 +140,6 @@ public class AccountController : ControllerBase
     // Hjelpemetode for å hente den innloggede brukeren fra JWT-tokenet
     private async Task<ApplicationUser?> GetCurrentUserAsync()
     {
-        // Gateway sender X-User-Id, eller OpenIddict henter 'sub' claim
         var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier) 
                            ?? User.FindFirstValue(OpenIddictConstants.Claims.Subject)
                            ?? Request.Headers["X-User-Id"].FirstOrDefault();

@@ -32,25 +32,13 @@ public class AuthorizationController(
 
             if (user is null)
             {
-                return Challenge(
-                    properties: new AuthenticationProperties(new Dictionary<string, string?>
-                    {
-                        [OpenIddictServerAspNetCoreConstants.Properties.Error] = OpenIddictConstants.Errors.InvalidGrant,
-                        [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = "Ugyldig e-post eller passord."
-                    }),
-                    authenticationSchemes: new[] { OpenIddictServerAspNetCoreDefaults.AuthenticationScheme });
+                return ChallengeWithError("Ugyldig e-post eller passord.");
             }
 
             var result = await signInManager.CheckPasswordSignInAsync(user, request.Password!, lockoutOnFailure: true);
             if (!result.Succeeded)
             {
-                return Challenge(
-                    properties: new AuthenticationProperties(new Dictionary<string, string?>
-                    {
-                        [OpenIddictServerAspNetCoreConstants.Properties.Error] = OpenIddictConstants.Errors.InvalidGrant,
-                        [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = "Ugyldig e-post eller passord."
-                    }),
-                    authenticationSchemes: new[] { OpenIddictServerAspNetCoreDefaults.AuthenticationScheme });
+                return ChallengeWithError("Ugyldig e-post eller passord.");
             }
 
             var principal = await CreateClaimsPrincipalAsync(user);
@@ -63,19 +51,13 @@ public class AuthorizationController(
             var result = await HttpContext.AuthenticateAsync(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
             if (!result.Succeeded)
             {
-                return Challenge(
-                    properties: new AuthenticationProperties(new Dictionary<string, string?>
-                    {
-                        [OpenIddictServerAspNetCoreConstants.Properties.Error] = OpenIddictConstants.Errors.InvalidGrant,
-                        [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = "Ugyldig refresh token."
-                    }),
-                    authenticationSchemes: new[] { OpenIddictServerAspNetCoreDefaults.AuthenticationScheme });
+                return ChallengeWithError("Ugyldig eller utløpt refresh token.");
             }
 
             return SignIn(result.Principal, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
         }
 
-        return BadRequest(new { Error = "Ugyldig grant type specified." });
+        return BadRequest(new { Error = "Ugyldig grant_type angitt." });
     }
 
     private async Task<ClaimsPrincipal> CreateClaimsPrincipalAsync(ApplicationUser user)
@@ -85,7 +67,6 @@ public class AuthorizationController(
             nameType: OpenIddictConstants.Claims.Name,
             roleType: OpenIddictConstants.Claims.Role);
 
-        // Nøkkel-claims som Gateway bruker til X-User-Id og X-User-Roles injection
         identity.AddClaim(OpenIddictConstants.Claims.Subject, user.Id.ToString());
         identity.AddClaim(OpenIddictConstants.Claims.Email, user.Email ?? string.Empty);
         identity.AddClaim(OpenIddictConstants.Claims.GivenName, user.FirstName);
@@ -97,12 +78,29 @@ public class AuthorizationController(
             identity.AddClaim(OpenIddictConstants.Claims.Role, role);
         }
 
-        // Tving claims inn i Access Tokenet for lesing i Gateway
         identity.SetDestinations(_ => new[] { OpenIddictConstants.Destinations.AccessToken });
 
         var principal = new ClaimsPrincipal(identity);
-        principal.SetScopes(OpenIddictConstants.Scopes.OpenId, OpenIddictConstants.Scopes.Profile, OpenIddictConstants.Scopes.Roles);
+        
+        // Inkluderer OfflineAccess for å tvinge utstedelse av Refresh Token
+        principal.SetScopes(
+            OpenIddictConstants.Scopes.OpenId,
+            OpenIddictConstants.Scopes.Profile,
+            OpenIddictConstants.Scopes.Roles,
+            OpenIddictConstants.Scopes.OfflineAccess
+        );
 
         return principal;
+    }
+
+    private IActionResult ChallengeWithError(string description)
+    {
+        return Challenge(
+            properties: new AuthenticationProperties(new Dictionary<string, string?>
+            {
+                [OpenIddictServerAspNetCoreConstants.Properties.Error] = OpenIddictConstants.Errors.InvalidGrant,
+                [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = description
+            }),
+            authenticationSchemes: new[] { OpenIddictServerAspNetCoreDefaults.AuthenticationScheme });
     }
 }

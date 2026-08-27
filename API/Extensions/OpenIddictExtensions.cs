@@ -30,7 +30,8 @@ public static class OpenIddictExtensions
             .AddCore(options =>
             {
                 options.UseEntityFrameworkCore()
-                       .UseDbContext<ApplicationDbContext>();
+                    .UseDbContext<ApplicationDbContext>()
+                    .ReplaceDefaultEntities<Guid>();
             })
             .AddServer(options =>
             {

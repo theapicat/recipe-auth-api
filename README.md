@@ -6,22 +6,24 @@ Identitets- og autentiseringstjeneste for **Kjøkkenhylla**-økosystemet, bygget
 
 ## 🛠️ Arkitektur og Ruting
 
-Auth API-et kjører lokalt på **port 5001**. Klienter kommuniserer normalt med tjenesten gjennom **recipe-gateway-api** (port 5000), som ruter alle `/api/auth/*`-forespørsler videre.
+Auth API-et kjører lokalt på **port 5001**. Klienter kommuniserer med tjenesten gjennom **recipe-gateway-api** (port 5000), som ruter alle `/api/auth/*`-forespørsler videre.
 
 | Endepunkt (Gjennom Gateway) | Metode | Content-Type | Autentisering | Beskrivelse |
 | --- | --- | --- | --- | --- |
-| `/api/auth/connect/token` | `POST` | `application/x-www-form-urlencoded` | Anonym | Henter ut Access Token / Refresh Token ved innlogging eller fornyelse. |
-| `/api/auth/api/account/register` | `POST` | `application/json` | Anonym | Registrerer en ny bruker. |
-| `/api/auth/api/account/me` | `GET` | *Ingen* | Bearer Token | Henter den innloggede brukerens profil. |
-| `/api/auth/api/account/profile` | `PUT` | `application/json` | Bearer Token | Oppdaterer fornavn, etternavn og avatar. |
-| `/api/auth/api/account/change-password` | `POST` | `application/json` | Bearer Token | Endrer passord for innlogget bruker. |
-| `/api/auth/api/account/me` | `DELETE` | *Ingen* | Bearer Token | Permanent sletting av brukerens konto. |
+| `/api/auth/connect/token` | `POST` | `application/x-www-form-urlencoded` | Anonym | Utsteder og fornyer JWT access tokens og refresh tokens via OpenIddict. |
+| `/api/auth/account/register` | `POST` | `application/x-www-form-urlencoded` / `application/json` | Anonym | Registrerer ny bruker og returnerer `UserProfileResponse`. |
+| `/api/auth/account/me` | `GET` | *Ingen* | Bearer Token | Henter profilinformasjon for den innloggede brukeren (`UserProfileResponse`). |
+| `/api/auth/account/profile` | `PUT` | `application/json` | Bearer Token | Oppdaterer fornavn, etternavn og avatar. |
+| `/api/auth/account/change-password` | `POST` | `application/json` | Bearer Token | Endrer passord for innlogget bruker. |
+| `/api/auth/account/me` | `DELETE` | *Ingen* | Bearer Token | Permanent sletting av brukerens konto. |
 
 ---
 
 ## 📋 DTO-Spesifikasjoner
 
 ### 1. `RegisterRequest`
+
+Brukes ved brukerregistrering på `POST /api/auth/account/register`. Endepunktet godtar både JSON og `application/x-www-form-urlencoded`.
 
 ```csharp
 public class RegisterRequest
@@ -41,27 +43,34 @@ public class RegisterRequest
 
 ```
 
-### 2. `UserCreatedResponse` & `LoginResponse`
+**Form Data Parametere (`application/x-www-form-urlencoded`):**
+
+* `Email`: `bruker@example.com`
+* `Password`: `DittPassord123!`
+* `FirstName`: `Ola`
+* `LastName`: `Nordmann`
+
+---
+
+### 2. `UserProfileResponse`
+
+Standard respons som returneres både ved fullført registrering (`POST /account/register`) og profilhenting (`GET /account/me`).
 
 ```csharp
-public class LoginResponse
+public class UserProfileResponse
 {
-    public string Token { get; set; } = string.Empty;
     public string UserId { get; set; } = string.Empty;
     public string UserName { get; set; } = string.Empty;
-    public string Role { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string? AvatarUrl { get; set; }
-}
-
-public class UserCreatedResponse : LoginResponse
-{
-    public string Message { get; set; } = "Bruker opprettet med hell.";
+    public string Role { get; set; } = string.Empty;
 }
 
 ```
+
+---
 
 ### 3. `UpdateProfileRequest` & `ChangePasswordRequest`
 
@@ -92,16 +101,22 @@ public class ChangePasswordRequest
 
 ## 🔑 OAuth2 Token Exchange (`/connect/token`)
 
-OpenIddict krever at forespørsler mot `/connect/token` er formatert i henhold til OAuth2-standarden ved å bruke **`application/x-www-form-urlencoded`** i stedet for JSON.
+OpenIddict håndterer token-utstedelse og fornyelse på endepunktet `/connect/token`. Forespørsler **må** sendes som `application/x-www-form-urlencoded`.
+
+Gyldige klient-ID-er:
+
+* `recipe-web-app`
+* `recipe-mobile-app`
 
 ### A. Innlogging (Password Grant)
 
 * **URL**: `POST /connect/token`
 * **Header**: `Content-Type: application/x-www-form-urlencoded`
-* **Body Form Parameters**:
+* **Body**:
 * `grant_type`: `password`
 * `username`: `bruker@example.com`
 * `password`: `DittPassord123!`
+* `client_id`: `recipe-web-app`
 
 
 
@@ -109,37 +124,85 @@ OpenIddict krever at forespørsler mot `/connect/token` er formatert i henhold t
 
 * **URL**: `POST /connect/token`
 * **Header**: `Content-Type: application/x-www-form-urlencoded`
-* **Body Form Parameters**:
+* **Body**:
 * `grant_type`: `refresh_token`
 * `refresh_token`: `<Mottatt refresh_token>`
+* `client_id`: `recipe-web-app`
 
 
 
-### C. Respons-format fra `/connect/token`
+### C. Vellykket Respons (`200 OK`)
 
 ```json
 {
   "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "token_type": "Bearer",
   "expires_in": 3600,
-  "refresh_token": "f83a4b98-12cd-4e56-8a90-..."
+  "refresh_token": "eyJhbGciOiJIUzI1...",
+  "scope": "openid profile roles offline_access"
 }
 
 ```
+
+### D. Feilrespons fra OpenIddict (`400 Bad Request` / `401 Unauthorized`)
+
+Dersom innlogging eller fornyelse mislykkes (ugyldig passord, utløpt token osv.), returnerer OpenIddict en standard OAuth2 JSON-feilrespons:
+
+```json
+{
+  "error": "invalid_grant",
+  "error_description": "Ugyldig e-post eller passord."
+}
+
+```
+
+Standard `error`-koder du kan møte på:
+
+* `invalid_grant`: Feil brukernavn/passord, eller utløpt/ugyldig refresh token.
+* `unsupported_grant_type`: Sendt ugyldig `grant_type` (må være `password` eller `refresh_token`).
+* `invalid_client`: Ugyldig eller manglende `client_id`.
 
 ---
 
 ## 💻 Frontend Integration (JavaScript / Next.js)
 
-Siden `/connect/token` forventer URL-enkodede skjermadata, benyttes `URLSearchParams` i `fetch` fra **recipe-web-app**:
+### 1. Registrering med `application/x-www-form-urlencoded`
 
 ```typescript
-// Eksempel på innlogging fra Next.js / React
+export async function registerUser(formData: { email: string; password: string; firstName: string; lastName: string }) {
+  const body = new URLSearchParams();
+  body.append('Email', formData.email);
+  body.append('Password', formData.password);
+  body.append('FirstName', formData.firstName);
+  body.append('LastName', formData.lastName);
+
+  const response = await fetch('http://localhost:5000/api/auth/account/register', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: body.toString(),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Registrering mislyktes');
+  }
+
+  return await response.json(); // Returnerer UserProfileResponse
+}
+
+```
+
+### 2. Innlogging & Feilhåndtering mot `/connect/token`
+
+```typescript
 export async function loginUser(email: string, password: string) {
   const body = new URLSearchParams();
   body.append('grant_type', 'password');
   body.append('username', email);
   body.append('password', password);
+  body.append('client_id', 'recipe-web-app');
 
   const response = await fetch('http://localhost:5000/api/auth/connect/token', {
     method: 'POST',
@@ -149,13 +212,14 @@ export async function loginUser(email: string, password: string) {
     body: body.toString(),
   });
 
+  const data = await response.json();
+
   if (!response.ok) {
-    throw new Error('Innlogging mislyktes');
+    // Fanger opp OpenIddict sine standard feilmeldingsfelt
+    throw new Error(data.error_description || data.error || 'Innlogging mislyktes');
   }
 
-  const data = await response.json();
-  // data.access_token lagres og sendes som "Bearer <token>" mot Gateway
-  return data;
+  return data; // Returnerer access_token og refresh_token
 }
 
 ```
@@ -165,20 +229,18 @@ export async function loginUser(email: string, password: string) {
 ## ⚙️ Utvikleroppsett & Kjøring
 
 1. **Infrastruktur**: Sørg for at PostgreSQL kjører i Docker via `recipe-infrastructure` (`recipe-auth-db` på port 5432).
-
-
 2. **Databasemigrasjoner**:
+
 ```bash
 dotnet ef database update
 
 ```
 
-
 3. **Kjør applikasjonen**:
+
 ```bash
 dotnet watch
 
 ```
 
-
-API-et vil lytte på **`http://localhost:5001`**.
+API-et lytter på **`http://localhost:5001`** og er tilgjengelig via Gateway på **`http://localhost:5000/api/auth/*`**.
