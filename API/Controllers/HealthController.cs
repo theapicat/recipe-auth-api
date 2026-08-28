@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace API.Controllers;
 [ApiController]
 [AllowAnonymous]
+[Route("api/auth/health")]
 public class HealthController(IConfiguration configuration, IHostEnvironment environment) : ControllerBase
 {
     [HttpGet]

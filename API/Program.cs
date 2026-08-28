@@ -25,4 +25,5 @@ app.MapControllers();
 
 await IdentitySeeder.SeedAsync(app.Services);
 
+app.Logger.LogInformation("🚀 Applikasjonen har startet og lytter på forespørsler!");
 app.Run();
