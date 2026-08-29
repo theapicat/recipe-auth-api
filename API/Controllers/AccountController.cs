@@ -10,7 +10,7 @@ using OpenIddict.Validation.AspNetCore;
 namespace API.Controllers;
 
 [ApiController]
-[Route("api/account")]
+[Route("~/account")]
 public class AccountController(UserManager<ApplicationUser> userManager) : ControllerBase
 {
     // --- REGISTRERING ---
