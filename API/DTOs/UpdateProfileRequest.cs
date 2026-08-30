@@ -9,6 +9,4 @@ public class UpdateProfileRequest
 
     [Required(ErrorMessage = "Etternavn er påkrevd.")]
     public string LastName { get; set; } = string.Empty;
-
-    public string? AvatarUrl { get; set; }
 }

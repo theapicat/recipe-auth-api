@@ -24,7 +24,9 @@ public class AuthorizationController(
         var request = HttpContext.GetOpenIddictServerRequest()
             ?? throw new InvalidOperationException("Kunne ikke hente OpenID Connect-forespørselen.");
 
-        // 1. Password Grant (Innlogging)
+        // ----------------------------------------------------
+        // 1. Password Grant (Førstegangs innlogging med e-post + passord)
+        // ----------------------------------------------------
         if (request.IsPasswordGrantType())
         {
             var user = await userManager.FindByEmailAsync(request.Username!) 
@@ -35,26 +37,58 @@ public class AuthorizationController(
                 return ChallengeWithError("Ugyldig e-post eller passord.");
             }
 
+            // Sjekk om kontoen er sperret
+            if (await userManager.IsLockedOutAsync(user))
+            {
+                return ChallengeWithError("Kontoen din er sperret. Sjekk e-posten din for informasjon.");
+            }
+
             var result = await signInManager.CheckPasswordSignInAsync(user, request.Password!, lockoutOnFailure: true);
             if (!result.Succeeded)
             {
                 return ChallengeWithError("Ugyldig e-post eller passord.");
             }
 
+            // Oppdater LastLoginAt ved vellykket innlogging
+            user.LastLoginAt = DateTime.UtcNow;
+            await userManager.UpdateAsync(user);
+
             var principal = await CreateClaimsPrincipalAsync(user);
             return SignIn(principal, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
         }
 
-        // 2. Refresh Token Grant (Fornyelse)
+        // ----------------------------------------------------
+        // 2. Refresh Token Grant (Automatisk token-fornyelse)
+        // ----------------------------------------------------
         if (request.IsRefreshTokenGrantType())
         {
             var result = await HttpContext.AuthenticateAsync(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
-            if (!result.Succeeded)
+            if (!result.Succeeded || result.Principal is null)
             {
                 return ChallengeWithError("Ugyldig eller utløpt refresh token.");
             }
 
-            return SignIn(result.Principal, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+            // Hent bruker-ID fra eksisterende token-claims
+            var userId = result.Principal.GetClaim(OpenIddictConstants.Claims.Subject);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return ChallengeWithError("Ugyldig token-identitetsdata.");
+            }
+
+            var user = await userManager.FindByIdAsync(userId);
+            if (user is null || await userManager.IsLockedOutAsync(user))
+            {
+                return ChallengeWithError("Kontoen er sperret eller eksisterer ikke lenger.");
+            }
+
+            // Oppdater LastLoginAt ved hver vellykkede token-fornyelse
+            user.LastLoginAt = DateTime.UtcNow;
+            await userManager.UpdateAsync(user);
+
+            // Re-opprett ClaimsPrincipal for å sikre at nye navn, roller eller felter blir inkludert
+            var freshPrincipal = await CreateClaimsPrincipalAsync(user);
+
+            return SignIn(freshPrincipal, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
         }
 
         return BadRequest(new { Error = "Ugyldig grant_type angitt." });

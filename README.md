@@ -1,21 +1,27 @@
 # 🔑 recipe-authentication-api
 
-Identitets- og autentiseringstjeneste for **Kjøkkenhylla**-økosystemet, bygget med .NET, ASP.NET Core Identity og **OpenIddict**. Tjenesten eier `recipe_auth_db` (PostgreSQL på port 5432) og håndterer brukerregistrering, profiladministrasjon samt utstedelse og fornyelse av OAuth2/OIDC JWT-tokens.
+Identitets- og autentiseringstjeneste for **Kjøkkenhylla**-økosystemet, bygget med .NET, ASP.NET Core Identity og **OpenIddict**. Tjenesten eier `recipe_auth_db` (PostgreSQL på port 5432) og håndterer brukerregistrering, profiladministrasjon, e-postverifisering samt utstedelse og fornyelse av OAuth2/OIDC JWT-tokens.
 
 ---
 
 ## 🛠️ Arkitektur og Ruting
 
-Auth API-et kjører lokalt på **port 5001**. Klienter kommuniserer med tjenesten gjennom **recipe-gateway-api** (port 5000), som ruter alle `/api/auth/*`-forespørsler videre.
+Auth API-et kjører lokalt på **port 5001**. Klienter kommuniserer med tjenesten gjennom **recipe-gateway-api** (port 5000), som ruter alle `/api/auth/*`-forespørsler videre til auth-tjenesten.
 
 | Endepunkt (Gjennom Gateway) | Metode | Content-Type | Autentisering | Beskrivelse |
 | --- | --- | --- | --- | --- |
-| `/api/auth/connect/token` | `POST` | `application/x-www-form-urlencoded` | Anonym | Utsteder og fornyer JWT access tokens og refresh tokens via OpenIddict. |
-| `/api/auth/account/register` | `POST` | `application/x-www-form-urlencoded` / `application/json` | Anonym | Registrerer ny bruker og returnerer `UserProfileResponse`. |
+| `/api/auth/connect/token` | `POST` | `application/x-www-form-urlencoded` | Anonym | Utsteder og fornyer JWT access tokens og refresh tokens via OpenIddict. Oppdaterer `LastLoginAt`. |
+| `/api/auth/account/register` | `POST` | `application/x-www-form-urlencoded` / `application/json` | Anonym | Registrerer ny bruker og returnerer `UserProfileResponse` med bekreftelsestoken. |
 | `/api/auth/account/me` | `GET` | *Ingen* | Bearer Token | Henter profilinformasjon for den innloggede brukeren (`UserProfileResponse`). |
-| `/api/auth/account/profile` | `PUT` | `application/json` | Bearer Token | Oppdaterer fornavn, etternavn og avatar, og returnerer oppdatert `UserProfileResponse`. |
-| `/api/auth/account/change-password` | `POST` | `application/json` | Bearer Token | Endrer passord for innlogget bruker. |
-| `/api/auth/account/me` | `DELETE` | *Ingen* | Bearer Token | Permanent sletting av brukerens konto. |
+| `/api/auth/account/profile` | `PUT` | `application/json` | Bearer Token | Oppdaterer fornavn og etternavn. Returnerer oppdatert `UserProfileResponse`. |
+| `/api/auth/account/change-password` | `POST` | `application/json` | Bearer Token | Endrer passord for innlogget bruker med eksisterende passord. |
+| `/api/auth/account/set-password` | `POST` | `application/json` | Bearer Token | Oppretter lokalt passord for innloggede brukere som opprinnelig registrert via Google. |
+| `/api/auth/account/complete-welcome` | `GET` | *Ingen* | Bearer Token | Merker velkomstsiden som fullført (`WelcomeCompleted = true`). |
+| `/api/auth/account/resend-confirmation` | `POST` | *Ingen* | Bearer Token | Trigger ny bekreftelsese-post for den innloggede brukeren. |
+| `/api/auth/account/confirm-email` | `POST` | `application/json` | Anonym | Bekrefter e-postadresse via `UserId` og token mottatt i e-postlenke. |
+| `/api/auth/account/recover` | `POST` | `application/json` | Anonym | Genererer token for tilbakestilling av passord for uinnloggede brukere. |
+| `/api/auth/account/reset-password` | `POST` | `application/json` | Anonym | Tilbakestiller passord ved hjelp av mottatt token fra e-post. |
+| `/api/auth/account/me` | `DELETE` | *Ingen* | Bearer Token | Permanent sletting av den innloggede brukerens konto og data. |
 
 ---
 
@@ -43,18 +49,11 @@ public class RegisterRequest
 
 ```
 
-**Form Data Parametere (`application/x-www-form-urlencoded`):**
-
-* `Email`: `bruker@example.com`
-* `Password`: `DittPassord123!`
-* `FirstName`: `Ola`
-* `LastName`: `Nordmann`
-
 ---
 
 ### 2. `UserProfileResponse`
 
-Standard respons som returneres ved fullført registrering (`POST /account/register`), ved profilhenting (`GET /account/me`) og ved profiloppdatering (`PUT /account/profile`).
+Standard respons som returneres ved registrering, profilhenting (`GET /account/me`), profiloppdatering (`PUT /account/profile`) og velkomstfullføring.
 
 ```csharp
 public class UserProfileResponse
@@ -64,20 +63,29 @@ public class UserProfileResponse
     public string Email { get; set; } = string.Empty;
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
-    public string? AvatarUrl { get; set; }
     public string Role { get; set; } = string.Empty;
+
+    // Google- & Passord-flagg
+    public bool HasPassword { get; set; }
+    public bool IsGoogleAccount { get; set; }
+
+    // Status & Metadata
     public bool IsEmailConfirmed { get; set; }
+    public bool WelcomeCompleted { get; set; }
+    public bool IsLocked { get; set; }
     public DateTime CreatedAt { get; set; }
-    public DateTime LastModifiedAt { get; set; }
+    public DateTime? LastModifiedAt { get; set; }
+    public DateTime? LastLoginAt { get; set; }
 }
 
 ```
 
 ---
 
-### 3. `UpdateProfileRequest` & `ChangePasswordRequest`
+### 3. Skjema- og Sikkerhets-DTO-er
 
 ```csharp
+// PUT /api/auth/account/profile
 public class UpdateProfileRequest
 {
     [Required(ErrorMessage = "Fornavn er påkrevd.")]
@@ -85,10 +93,9 @@ public class UpdateProfileRequest
 
     [Required(ErrorMessage = "Etternavn er påkrevd.")]
     public string LastName { get; set; } = string.Empty;
-
-    public string? AvatarUrl { get; set; }
 }
 
+// POST /api/auth/account/change-password
 public class ChangePasswordRequest
 {
     [Required]
@@ -97,6 +104,29 @@ public class ChangePasswordRequest
     [Required, MinLength(8)]
     public string NewPassword { get; set; } = string.Empty;
 }
+
+// POST /api/auth/account/set-password (for Google-brukere utan eksisterende passord)
+public record SetPasswordRequest(
+    [Required, MinLength(8)] string NewPassword
+);
+
+// POST /api/auth/account/confirm-email (fra lenke i e-post)
+public record ConfirmEmailRequest(
+    [Required] string UserId,
+    [Required] string Token
+);
+
+// POST /api/auth/account/recover
+public record RecoverPasswordRequest(
+    [Required, EmailAddress] string Email
+);
+
+// POST /api/auth/account/reset-password
+public record ResetPasswordRequest(
+    [Required, EmailAddress] string Email,
+    [Required] string Token,
+    [Required, MinLength(8)] string NewPassword
+);
 
 ```
 
@@ -134,7 +164,15 @@ Gyldige klient-ID-er:
 
 
 
-### C. Vellykket Respons (`200 OK`)
+### C. Sikkerhet og Inaktivitetshåndtering
+
+Ved alle vellykkede kall til `/connect/token` (både `password` og `refresh_token` grants), utfører API-et følgende operasjoner i bakgrunnen:
+
+1. **Oppdaterer aktivitet:** Setter `LastLoginAt = DateTime.UtcNow` i databasen for å forhindre at aktive brukere flagges for inaktivitet (f.eks. ved 6-måneders grensen).
+2. **Sjekker kontostatus:** Verifiserer at kontoen ikke er manuelt eller automatisk sperret (`userManager.IsLockedOutAsync`). Sperrede brukere vil umiddelbart få avvist sin token-fornyelse.
+3. **Oppdaterer Claims:** Ved fornyelse opprettes `ClaimsPrincipal` på nytt, slik at eventuelle oppdaterte roller, fornavn eller etternavn gjenspeiles i det nye access-tokenet.
+
+### D. Vellykket Respons (`200 OK`)
 
 ```json
 {
@@ -147,9 +185,7 @@ Gyldige klient-ID-er:
 
 ```
 
-### D. Feilrespons fra OpenIddict (`400 Bad Request` / `401 Unauthorized`)
-
-Dersom innlogging eller fornyelse mislykkes (ugyldig passord, utløpt token osv.), returnerer OpenIddict en standard OAuth2 JSON-feilrespons:
+### E. Feilrespons fra OpenIddict (`400 Bad Request` / `401 Unauthorized`)
 
 ```json
 {
@@ -159,10 +195,10 @@ Dersom innlogging eller fornyelse mislykkes (ugyldig passord, utløpt token osv.
 
 ```
 
-Standard `error`-koder du kan møte på:
+Standard `error`-koder:
 
-* `invalid_grant`: Feil brukernavn/passord, eller utløpt/ugyldig refresh token.
-* `unsupported_grant_type`: Sendt ugyldig `grant_type` (må være `password` eller `refresh_token`).
+* `invalid_grant`: Feil brukernavn/passord, kontoen er sperret, eller utløpt/ugyldig refresh token.
+* `unsupported_grant_type`: Ugyldig `grant_type` (må være `password` eller `refresh_token`).
 * `invalid_client`: Ugyldig eller manglende `client_id`.
 
 ---
@@ -192,7 +228,7 @@ export async function registerUser(formData: { email: string; password: string; 
     throw new Error(errorData.message || 'Registrering mislyktes');
   }
 
-  return await response.json(); // Returnerer UserProfileResponse
+  return await response.json(); // Returnerer { user: UserProfileResponse, confirmationToken: string }
 }
 
 ```
@@ -218,7 +254,6 @@ export async function loginUser(email: string, password: string) {
   const data = await response.json();
 
   if (!response.ok) {
-    // Fanger opp OpenIddict sine standard feilmeldingsfelt
     throw new Error(data.error_description || data.error || 'Innlogging mislyktes');
   }
 
@@ -236,27 +271,26 @@ export async function loginUser(email: string, password: string) {
 
 ```bash
 dotnet ef database update
+
 ```
 
 3. **Kjør applikasjonen**:
 
 ```bash
 dotnet watch
+
 ```
 
 API-et lytter på **`http://localhost:5001`** og er tilgjengelig via Gateway på **`http://localhost:5000/api/auth/*`**.
-
 
 ---
 
 ## 🚧 Work in Progress (Planlagte Funksjoner)
 
-Følgende funksjonalitet og endepunkter er under vurdering og planlagt for fremtidige versjoner:
+Følgende funksjonalitet og endepunkter er under utrulling for Google OAuth2 og e-postutsending:
 
 | Endepunkt (Gjennom Gateway) | Metode | Status | Beskrivelse |
 | --- | --- | --- | --- |
-| `/api/auth/account/recover` | `POST` | 🚧 Planlagt | Genererer token/magic link for tilbakestilling og sender e-post til bruker. |
-| `/api/auth/account/reset-password` | `POST` | 🚧 Planlagt | Validerer token fra e-post og oppdaterer passordet for uinnloggede brukere. |
-| `/api/auth/account/confirm-email` | `POST` | 🚧 Planlagt | Bekrefter og verifiserer brukerens e-postadresse via mottatt token. |
-| `/api/auth/account/external-login` | `GET` | 🚧 Planlagt | Initiere OAuth2-innloggingsflyt mot Google. |
-| `/api/auth/account/external-callback` | `GET` | 🚧 Planlagt | Håndterer retursvar fra Google og utsteder JWT-token via OpenIddict. |
+| `/api/auth/account/google-login` | `GET` | 🚧 Planlagt | Initiere OAuth2-innloggingsflyt mot Google. |
+| `/api/auth/account/google-callback` | `GET` | 🚧 Planlagt | Håndterer retursvar fra Google, oppretter/kobler `ApplicationUser` og utsteder JWT-tokens via OpenIddict. |
+| **E-posttjeneste (`IEmailService`)** | - | 🚧 Planlagt | Integrasjon mot SMTP/Mail-provider for automatisk utsending av e-postbekreftelser og passordtilbakestilling. |
