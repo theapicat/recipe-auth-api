@@ -1,7 +1,10 @@
-using API.Context;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Persistence.Context;
 
-namespace API.Services;
+namespace Persistence.Seeders;
 
 public static class IdentitySeeder
 {

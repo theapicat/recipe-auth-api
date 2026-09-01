@@ -1,5 +1,5 @@
 using API.Extensions;
-using API.Services;
+using Persistence.Seeders;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
