@@ -1,5 +1,7 @@
 using System.Security.Claims;
 using API.DTOs;
+using Application.Mediator.Register;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -11,43 +13,35 @@ namespace API.Controllers;
 
 [ApiController]
 [Route("~/account")]
-public class AccountController(UserManager<ApplicationUser> userManager) : ControllerBase
+public class AccountController(
+    IMediator mediator,
+    UserManager<ApplicationUser> userManager) : ControllerBase
 {
-    // --- 1. REGISTRERING (Anonym) ---
+// --- 1. REGISTRERING (Anonym) ---
     [HttpPost("register")]
     [Consumes("application/x-www-form-urlencoded", "application/json")]
     public async Task<IActionResult> Register([FromForm] RegisterRequest request)
     {
-        var existingUser = await userManager.FindByEmailAsync(request.Email);
-        if (existingUser != null)
+        var command = new RegisterUserCommand(
+            request.Email,
+            request.Password,
+            request.FirstName,
+            request.LastName
+        );
+
+        var result = await mediator.Send(command);
+
+        if (!result.IsSuccess)
         {
-            return BadRequest(new { Message = "E-postadressen er allerede i bruk." });
+            if (result.Errors != null)
+            {
+                return BadRequest(result.Errors);
+            }
+
+            return BadRequest(new { Message = result.ErrorMessage });
         }
 
-        var user = new ApplicationUser
-        {
-            UserName = request.Email,
-            Email = request.Email,
-            FirstName = request.FirstName,
-            LastName = request.LastName,
-            WelcomeCompleted = false,
-            CreatedAt = DateTime.UtcNow,
-            LastModifiedAt = DateTime.UtcNow
-        };
-
-        var result = await userManager.CreateAsync(user, request.Password);
-        if (!result.Succeeded)
-        {
-            return BadRequest(result.Errors);
-        }
-
-        await userManager.AddToRoleAsync(user, "user");
-
-        // Generer e-postbekreftelsestoken ved registrering
-        var confirmationToken = await userManager.GenerateEmailConfirmationTokenAsync(user);
-
-        var response = await MapToUserProfileResponseAsync(user);
-        return Ok(response);
+        return Ok(result.UserProfile);
     }
 
     // --- 2. HENT MIN PROFIL (Innlogget) ---
