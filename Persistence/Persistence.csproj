@@ -13,4 +13,8 @@
       <PackageReference Include="OpenIddict.EntityFrameworkCore" Version="7.6.1" />
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\Domain\Domain.csproj" />
+    </ItemGroup>
+
 </Project>

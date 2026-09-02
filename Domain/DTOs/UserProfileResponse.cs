@@ -1,3 +1,5 @@
+namespace Domain.DTOs;
+
 public class UserProfileResponse
 {
     public string UserId { get; set; } = string.Empty;

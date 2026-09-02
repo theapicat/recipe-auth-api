@@ -1,4 +1,6 @@
+using Domain.Options;
 using MassTransit;
+using Microsoft.Extensions.Options;
 
 namespace API.Extensions;
 
@@ -8,20 +10,20 @@ public static class MassTransitExtensions
         this IServiceCollection services, 
         IConfiguration configuration)
     {
+        // Sikrer at RabbitMqOptions er registrert
+        services.Configure<RabbitMqOptions>(configuration.GetSection(RabbitMqOptions.SectionName));
+
         services.AddMassTransit(x =>
         {
             x.UsingRabbitMq((context, cfg) =>
             {
-                var host = configuration["RabbitMQ:Host"] ?? "localhost";
-                var port = ushort.Parse(configuration["RabbitMQ:Port"] ?? "5672");
-                var virtualHost = configuration["RabbitMQ:VirtualHost"] ?? "/";
-                var username = configuration["RabbitMQ:Username"] ?? "rabbit_user";
-                var password = configuration["RabbitMQ:Password"] ?? "rabbit_secure_password_dev";
+                // Henter sterk type fra DI
+                var rabbitOptions = context.GetRequiredService<IOptions<RabbitMqOptions>>().Value;
 
-                cfg.Host(host, port, virtualHost, h =>
+                cfg.Host(rabbitOptions.Host, (ushort)rabbitOptions.Port, rabbitOptions.VirtualHost, h =>
                 {
-                    h.Username(username);
-                    h.Password(password);
+                    h.Username(rabbitOptions.Username);
+                    h.Password(rabbitOptions.Password);
                 });
 
                 cfg.ConfigureEndpoints(context);

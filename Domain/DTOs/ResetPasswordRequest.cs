@@ -1,6 +1,4 @@
-using System.Security.Cryptography.X509Certificates;
-
-namespace API.DTOs;
+namespace Domain.DTOs;
 
 public class ResetPasswordRequest
 {

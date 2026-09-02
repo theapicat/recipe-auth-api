@@ -1,5 +1,7 @@
+using Domain.Options;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using OpenIddict.Abstractions;
 using Persistence.Context;
 
@@ -14,8 +16,9 @@ public class OpenIddictSeeder(IServiceProvider serviceProvider) : IHostedService
         await context.Database.EnsureCreatedAsync(cancellationToken);
         
         var manager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
+        var appSettings = scope.ServiceProvider.GetRequiredService<IOptions<AppSettings>>().Value;
 
-        var allowedPermissions = new List<string>
+        var allowedPermissions = new HashSet<string>
         {
             OpenIddictConstants.Permissions.Endpoints.Token,
             OpenIddictConstants.Permissions.GrantTypes.Password,
@@ -27,25 +30,41 @@ public class OpenIddictSeeder(IServiceProvider serviceProvider) : IHostedService
         };
 
         // 1. Seed recipe-web-app
-        if (await manager.FindByClientIdAsync("recipe-web-app", cancellationToken) is null)
+        if (!string.IsNullOrWhiteSpace(appSettings.WebAppClientId) &&
+            await manager.FindByClientIdAsync(appSettings.WebAppClientId, cancellationToken) is null)
         {
-            await manager.CreateAsync(new OpenIddictApplicationDescriptor
+            var webAppDescriptor = new OpenIddictApplicationDescriptor
             {
-                ClientId = "recipe-web-app",
-                DisplayName = "Kjøkkenhylla Web App",
-                Permissions = { allowedPermissions[0], allowedPermissions[1], allowedPermissions[2], allowedPermissions[3], allowedPermissions[4], allowedPermissions[5], allowedPermissions[6] }
-            }, cancellationToken);
+                ClientId = appSettings.WebAppClientId,
+                DisplayName = appSettings.WebAppDisplayName,
+                ClientType = OpenIddictConstants.ClientTypes.Public
+            };
+
+            foreach (var permission in allowedPermissions)
+            {
+                webAppDescriptor.Permissions.Add(permission);
+            }
+
+            await manager.CreateAsync(webAppDescriptor, cancellationToken);
         }
 
         // 2. Seed recipe-mobile-app
-        if (await manager.FindByClientIdAsync("recipe-mobile-app", cancellationToken) is null)
+        if (!string.IsNullOrWhiteSpace(appSettings.MobileAppClientId) &&
+            await manager.FindByClientIdAsync(appSettings.MobileAppClientId, cancellationToken) is null)
         {
-            await manager.CreateAsync(new OpenIddictApplicationDescriptor
+            var mobileAppDescriptor = new OpenIddictApplicationDescriptor
             {
-                ClientId = "recipe-mobile-app",
-                DisplayName = "Kjøkkenhylla Mobil App",
-                Permissions = { allowedPermissions[0], allowedPermissions[1], allowedPermissions[2], allowedPermissions[3], allowedPermissions[4], allowedPermissions[5], allowedPermissions[6] }
-            }, cancellationToken);
+                ClientId = appSettings.MobileAppClientId,
+                DisplayName = appSettings.MobileAppDisplayName,
+                ClientType = OpenIddictConstants.ClientTypes.Public
+            };
+
+            foreach (var permission in allowedPermissions)
+            {
+                mobileAppDescriptor.Permissions.Add(permission);
+            }
+
+            await manager.CreateAsync(mobileAppDescriptor, cancellationToken);
         }
     }
 

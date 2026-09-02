@@ -1,7 +1,8 @@
+using Domain.Options;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Persistence.Context;
 
 namespace Persistence.Seeders;
@@ -13,7 +14,7 @@ public static class IdentitySeeder
         using var scope = serviceProvider.CreateScope();
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-        var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+        var adminOptions = scope.ServiceProvider.GetRequiredService<IOptions<AdminUserOptions>>().Value;
         var env = scope.ServiceProvider.GetRequiredService<IHostEnvironment>();
 
         // 1. Opprett roller
@@ -26,9 +27,14 @@ public static class IdentitySeeder
             }
         }
 
-        // 2. Opprett Admin-bruker
-        var adminEmail = config["AdminUser:Email"] ?? "admin@recipeapp.com";
-        var adminPassword = config["AdminUser:Password"] ?? "AdminSuperSecretPassword123!";
+        // 2. Opprett Admin-bruker (Hentes direkte fra sterk typet konfigurasjon)
+        if (string.IsNullOrWhiteSpace(adminOptions.Email) || string.IsNullOrWhiteSpace(adminOptions.Password))
+        {
+            throw new InvalidOperationException("Konfigurasjon for 'AdminUser' (Email/Password) mangler i appsettings.");
+        }
+
+        var adminEmail = adminOptions.Email;
+        var adminPassword = adminOptions.Password;
 
         if (await userManager.FindByEmailAsync(adminEmail) == null)
         {
@@ -47,6 +53,11 @@ public static class IdentitySeeder
             if (result.Succeeded)
             {
                 await userManager.AddToRoleAsync(adminUser, "Admin");
+            }
+            else
+            {
+                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                throw new InvalidOperationException($"Kunne ikke opprette adminbruker: {errors}");
             }
         }
 

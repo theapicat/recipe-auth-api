@@ -1,4 +1,5 @@
 using System.Text;
+using Domain.Options;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using Persistence.Context;
@@ -9,7 +10,17 @@ public static class OpenIddictExtensions
 {
     public static IServiceCollection AddCustomIdentityAndOpenIddict(this IServiceCollection services, IConfiguration configuration)
     {
-        // 1. ASP.NET Core Identity
+        // 1. Registrer og hent JwtOptions
+        services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
+
+        var jwtOptions = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>();
+
+        if (string.IsNullOrWhiteSpace(jwtOptions?.SecretKey))
+        {
+            throw new InvalidOperationException("Konfigurasjon for 'JWT:SecretKey' mangler eller er tom i appsettings.");
+        }
+
+        // 2. ASP.NET Core Identity
         services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
         {
             options.Password.RequireDigit = true;
@@ -20,10 +31,6 @@ public static class OpenIddictExtensions
         })
         .AddEntityFrameworkStores<ApplicationDbContext>()
         .AddDefaultTokenProviders();
-
-        // 2. Secret Key for JWT-signering (må matche Gateway sin JWT__KEY)
-        var jwtKey = configuration["JWT:SecretKey"]
-            ?? throw new InvalidOperationException("JWT:SecretKey is missing");
 
         // 3. OpenIddict Core & Server
         services.AddOpenIddict()
@@ -43,7 +50,7 @@ public static class OpenIddictExtensions
                        .AllowRefreshTokenFlow();
 
                 // Symmetrisk nøkkel for deling med Gateway
-                options.AddSigningKey(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)));
+                options.AddSigningKey(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey)));
 
                 // Utviklingssertifikater
                 options.AddDevelopmentEncryptionCertificate()

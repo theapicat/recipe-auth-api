@@ -1,10 +1,11 @@
-using API.DTOs;
 using Contracts.Events;
+using Domain.DTOs;
+using Domain.Options;
 using MassTransit;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Persistence.Context;
 
 namespace Application.Mediator.Register;
@@ -12,7 +13,7 @@ namespace Application.Mediator.Register;
 public class RegisterUserCommandHandler(
     UserManager<ApplicationUser> userManager,
     IPublishEndpoint publishEndpoint,
-    IConfiguration configuration,
+    IOptions<AppSettings> appSettings,
     ILogger<RegisterUserCommandHandler> logger) : IRequestHandler<RegisterUserCommand, RegisterUserResult>
 {
     public async Task<RegisterUserResult> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
@@ -51,10 +52,10 @@ public class RegisterUserCommandHandler(
         logger.LogInformation("3. Bruker {UserId} opprettet i databasen. Legger til i rolle 'user'...", user.Id);
         await userManager.AddToRoleAsync(user, "user");
 
-        // 3. Generer bekreftelses-token og bygg bekreftelseslenke
+        // 3. Generer bekreftelses-token og bygg bekreftelseslenke fra sterk typet konfigurasjon
         var confirmationToken = await userManager.GenerateEmailConfirmationTokenAsync(user);
         
-        var baseUrl = configuration["App:FrontendUrl"] ?? "https://kjokkenhylla.no";
+        var baseUrl = appSettings.Value.FrontendUrl;
         var confirmationLink = $"{baseUrl}/confirm-email?userId={user.Id}&token={Uri.EscapeDataString(confirmationToken)}";
 
         // 4. Publiser hendelsen til RabbitMQ (Sendes til recipe-notification-service)

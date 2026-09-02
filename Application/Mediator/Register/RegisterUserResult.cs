@@ -1,3 +1,4 @@
+using Domain.DTOs;
 using Microsoft.AspNetCore.Identity;
 
 namespace Application.Mediator.Register;

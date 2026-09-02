@@ -1,4 +1,4 @@
-namespace API.DTOs;
+namespace Domain.DTOs;
 
 public class RecoverPasswordRequest
 {

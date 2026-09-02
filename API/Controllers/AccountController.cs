@@ -1,6 +1,6 @@
 using System.Security.Claims;
-using API.DTOs;
 using Application.Mediator.Register;
+using Domain.DTOs;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;

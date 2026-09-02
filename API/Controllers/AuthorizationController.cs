@@ -37,10 +37,10 @@ public class AuthorizationController(
                 return ChallengeWithError("Ugyldig e-post eller passord.");
             }
 
-            // Sjekk om kontoen er sperret
-            if (await userManager.IsLockedOutAsync(user))
+            // Sjekk om kontoen er sperret eller ikke kan logge inn
+            if (await userManager.IsLockedOutAsync(user) || !await signInManager.CanSignInAsync(user))
             {
-                return ChallengeWithError("Kontoen din er sperret. Sjekk e-posten din for informasjon.");
+                return ChallengeWithError("Kontoen din er sperret eller deaktivert.");
             }
 
             var result = await signInManager.CheckPasswordSignInAsync(user, request.Password!, lockoutOnFailure: true);
@@ -76,7 +76,7 @@ public class AuthorizationController(
             }
 
             var user = await userManager.FindByIdAsync(userId);
-            if (user is null || await userManager.IsLockedOutAsync(user))
+            if (user is null || await userManager.IsLockedOutAsync(user) || !await signInManager.CanSignInAsync(user))
             {
                 return ChallengeWithError("Kontoen er sperret eller eksisterer ikke lenger.");
             }
