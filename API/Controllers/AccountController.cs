@@ -1,6 +1,9 @@
 using System.Security.Claims;
 using Application.Mediator.Register;
+using Contracts.Events;
 using Domain.DTOs;
+using Domain.Enums;
+using MassTransit;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -15,9 +18,10 @@ namespace API.Controllers;
 [Route("~/account")]
 public class AccountController(
     IMediator mediator,
-    UserManager<ApplicationUser> userManager) : ControllerBase
+    UserManager<ApplicationUser> userManager,
+    IPublishEndpoint publishEndpoint) : ControllerBase
 {
-// --- 1. REGISTRERING (Anonym) ---
+    // --- 1. REGISTRERING (Anonym) ---
     [HttpPost("register")]
     [Consumes("application/x-www-form-urlencoded", "application/json")]
     public async Task<IActionResult> Register([FromForm] RegisterRequest request)
@@ -186,6 +190,14 @@ public class AccountController(
             return BadRequest(new { Message = "Ugyldig eller utløpt bekreftelseskode.", Errors = result.Errors });
         }
 
+        // Fjerner sperren dersom brukeren var låst pga. ubekreftet e-post
+        if (await userManager.IsLockedOutAsync(user))
+        {
+            await userManager.SetLockoutEndDateAsync(user, null);
+            user.LockoutReason = LockoutReason.None;
+            user.LockoutReasonDetails = null;
+        }
+
         user.LastModifiedAt = DateTime.UtcNow;
         await userManager.UpdateAsync(user);
 
@@ -241,11 +253,26 @@ public class AccountController(
             return StatusCode(StatusCodes.Status403Forbidden, new { Message = "Systemadministrator kan ikke slettes via API-et." });
         }
 
+        // Henter nødvendig informasjon FØR sletting for å sende med i eventen
+        var userId = user.Id;
+        var email = user.Email ?? string.Empty;
+        var name = $"{user.FirstName} {user.LastName}".Trim();
+        var deletedAt = DateTime.UtcNow;
+
         var result = await userManager.DeleteAsync(user);
         if (!result.Succeeded)
         {
             return BadRequest(result.Errors);
         }
+
+        // Publiserer event til MassTransit
+        await publishEndpoint.Publish(new UserAccountDeletedByUserEvent
+        {
+            UserId = userId,
+            Email = email,
+            Name = name,
+            DeletedAt = deletedAt
+        });
 
         return Ok(new { Message = "Kontoen din er slettet." });
     }

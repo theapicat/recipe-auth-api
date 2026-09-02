@@ -373,6 +373,12 @@ namespace Persistence.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("text");
 
+                    b.Property<DateTime?>("Confirmation14DaysLockedSentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("Confirmation7DaysReminderSentAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -386,6 +392,12 @@ namespace Persistence.Migrations
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<DateTime?>("Inactivity1YearLockedSentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("InactivityWarning6MonthsSentAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("timestamp with time zone");
@@ -402,6 +414,12 @@ namespace Persistence.Migrations
 
                     b.Property<DateTimeOffset?>("LockoutEnd")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("LockoutReason")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("LockoutReasonDetails")
+                        .HasColumnType("text");
 
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)

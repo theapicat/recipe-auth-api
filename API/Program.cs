@@ -15,6 +15,7 @@ builder.Services.AddCustomIdentityAndOpenIddict(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHostedService<OpenIddictSeeder>();
 builder.Services.AddMassTransitServices(builder.Configuration);
+builder.Services.AddQuartzJobs(builder.Configuration);
 
 var app = builder.Build();
 
