@@ -4,6 +4,7 @@ using Domain.Options;
 using MassTransit;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Persistence.Context;
 using Quartz;
@@ -26,15 +27,18 @@ public class AccountLifecycleJob(
         var options = lifecycleOptions.Value;
         var now = DateTime.UtcNow;
 
+        // Henter spørring for alle bruker-ID-er som har "Admin"-rollen
+        var adminUserIds = GetAdminUserIdsQuery();
+
         // 1. Ubekreftet e-post
-        await Process7DaysUnconfirmedRemindersAsync(options, now);
-        await Process14DaysUnconfirmedLockoutsAsync(options, now);
-        await ProcessUnconfirmedDeletionsAsync(options, now);
+        await Process7DaysUnconfirmedRemindersAsync(options, now, adminUserIds);
+        await Process14DaysUnconfirmedLockoutsAsync(options, now, adminUserIds);
+        await ProcessUnconfirmedDeletionsAsync(options, now, adminUserIds);
 
         // 2. Inaktivitet
-        await Process6MonthsInactivityWarningsAsync(options, now);
-        await Process1YearInactivityLockoutsAsync(options, now);
-        await ProcessInactivityDeletionsAsync(options, now);
+        await Process6MonthsInactivityWarningsAsync(options, now, adminUserIds);
+        await Process1YearInactivityLockoutsAsync(options, now, adminUserIds);
+        await ProcessInactivityDeletionsAsync(options, now, adminUserIds);
 
         await dbContext.SaveChangesAsync();
         logger.LogInformation("Fullført skanning av kontolivssyklus.");
@@ -43,12 +47,16 @@ public class AccountLifecycleJob(
     // ------------------------------------------------------------------
     // Skann 1: 7 dagers ubekreftet e-post påminnelse
     // ------------------------------------------------------------------
-    private async Task Process7DaysUnconfirmedRemindersAsync(AccountLifecycleOptions options, DateTime now)
+    private async Task Process7DaysUnconfirmedRemindersAsync(
+        AccountLifecycleOptions options, 
+        DateTime now, 
+        IQueryable<Guid> adminUserIds)
     {
         var cutoff = now.AddDays(-options.ConfirmationReminderDays);
 
         var usersToRemind = await userManager.Users
-            .Where(u => !u.EmailConfirmed
+            .Where(u => !adminUserIds.Contains(u.Id)
+                        && !u.EmailConfirmed
                         && u.CreatedAt <= cutoff
                         && u.Confirmation7DaysReminderSentAt == null)
             .ToListAsync();
@@ -78,12 +86,16 @@ public class AccountLifecycleJob(
     // ------------------------------------------------------------------
     // Skann 2: 14 dagers ubekreftet e-post sperring
     // ------------------------------------------------------------------
-    private async Task Process14DaysUnconfirmedLockoutsAsync(AccountLifecycleOptions options, DateTime now)
+    private async Task Process14DaysUnconfirmedLockoutsAsync(
+        AccountLifecycleOptions options, 
+        DateTime now, 
+        IQueryable<Guid> adminUserIds)
     {
         var cutoff = now.AddDays(-options.ConfirmationLockoutDays);
 
         var usersToLock = await userManager.Users
-            .Where(u => !u.EmailConfirmed
+            .Where(u => !adminUserIds.Contains(u.Id)
+                        && !u.EmailConfirmed
                         && u.CreatedAt <= cutoff
                         && u.Confirmation14DaysLockedSentAt == null)
             .ToListAsync();
@@ -118,12 +130,17 @@ public class AccountLifecycleJob(
     // ------------------------------------------------------------------
     // Skann 3: 30 dagers ubekreftet e-post sletting av systemet
     // ------------------------------------------------------------------
-    private async Task ProcessUnconfirmedDeletionsAsync(AccountLifecycleOptions options, DateTime now)
+    private async Task ProcessUnconfirmedDeletionsAsync(
+        AccountLifecycleOptions options, 
+        DateTime now, 
+        IQueryable<Guid> adminUserIds)
     {
         var cutoff = now.AddDays(-options.ConfirmationDeletionDays);
 
         var usersToDelete = await userManager.Users
-            .Where(u => !u.EmailConfirmed && u.CreatedAt <= cutoff)
+            .Where(u => !adminUserIds.Contains(u.Id)
+                        && !u.EmailConfirmed 
+                        && u.CreatedAt <= cutoff)
             .ToListAsync();
 
         foreach (var user in usersToDelete)
@@ -153,12 +170,16 @@ public class AccountLifecycleJob(
     // ------------------------------------------------------------------
     // Skann 4: 6 måneders inaktivitetsvarsel
     // ------------------------------------------------------------------
-    private async Task Process6MonthsInactivityWarningsAsync(AccountLifecycleOptions options, DateTime now)
+    private async Task Process6MonthsInactivityWarningsAsync(
+        AccountLifecycleOptions options, 
+        DateTime now, 
+        IQueryable<Guid> adminUserIds)
     {
         var cutoff = now.AddMonths(-options.InactivityWarningMonths);
 
         var usersToWarn = await userManager.Users
-            .Where(u => u.EmailConfirmed
+            .Where(u => !adminUserIds.Contains(u.Id)
+                        && u.EmailConfirmed
                         && (u.LastLoginAt ?? u.CreatedAt) <= cutoff
                         && u.InactivityWarning6MonthsSentAt == null)
             .ToListAsync();
@@ -176,12 +197,16 @@ public class AccountLifecycleJob(
     // ------------------------------------------------------------------
     // Skann 5: 1 års inaktivitets sperring
     // ------------------------------------------------------------------
-    private async Task Process1YearInactivityLockoutsAsync(AccountLifecycleOptions options, DateTime now)
+    private async Task Process1YearInactivityLockoutsAsync(
+        AccountLifecycleOptions options, 
+        DateTime now, 
+        IQueryable<Guid> adminUserIds)
     {
         var cutoff = now.AddYears(-options.InactivityLockoutYears);
 
         var usersToLock = await userManager.Users
-            .Where(u => u.EmailConfirmed
+            .Where(u => !adminUserIds.Contains(u.Id)
+                        && u.EmailConfirmed
                         && (u.LastLoginAt ?? u.CreatedAt) <= cutoff
                         && u.Inactivity1YearLockedSentAt == null)
             .ToListAsync();
@@ -204,12 +229,16 @@ public class AccountLifecycleJob(
     // ------------------------------------------------------------------
     // Skann 6: Permanent sletting etter 1 års inaktivitet + 30 dagers sperre
     // ------------------------------------------------------------------
-    private async Task ProcessInactivityDeletionsAsync(AccountLifecycleOptions options, DateTime now)
+    private async Task ProcessInactivityDeletionsAsync(
+        AccountLifecycleOptions options, 
+        DateTime now, 
+        IQueryable<Guid> adminUserIds)
     {
         var cutoff = now.AddDays(-options.InactivityDeletionDays);
 
         var usersToDelete = await userManager.Users
-            .Where(u => u.EmailConfirmed
+            .Where(u => !adminUserIds.Contains(u.Id)
+                        && u.EmailConfirmed
                         && u.Inactivity1YearLockedSentAt != null
                         && u.Inactivity1YearLockedSentAt <= cutoff)
             .ToListAsync();
@@ -241,6 +270,17 @@ public class AccountLifecycleJob(
     // ------------------------------------------------------------------
     // Hjelpemetoder
     // ------------------------------------------------------------------
+    private IQueryable<Guid> GetAdminUserIdsQuery()
+    {
+        return dbContext.UserRoles
+            .Join(
+                dbContext.Roles.Where(r => r.Name == "Admin"),
+                ur => ur.RoleId,
+                r => r.Id,
+                (ur, r) => ur.UserId
+            );
+    }
+
     private string BuildConfirmationLink(Guid userId, string token)
     {
         var baseUrl = appSettings.Value.FrontendUrl.TrimEnd('/');
