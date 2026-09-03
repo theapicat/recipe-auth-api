@@ -3,11 +3,13 @@ using Application.Mediator.Register;
 using Contracts.Events;
 using Domain.DTOs;
 using Domain.Enums;
+using Domain.Options;
 using MassTransit;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using OpenIddict.Abstractions;
 using OpenIddict.Validation.AspNetCore;
 using Persistence.Context;
@@ -19,7 +21,8 @@ namespace API.Controllers;
 public class AccountController(
     IMediator mediator,
     UserManager<ApplicationUser> userManager,
-    IPublishEndpoint publishEndpoint) : ControllerBase
+    IPublishEndpoint publishEndpoint,
+    IOptions<AppSettings> appSettings) : ControllerBase
 {
     // --- 1. REGISTRERING (Anonym) ---
     [HttpPost("register")]
@@ -107,6 +110,9 @@ public class AccountController(
         user.LastModifiedAt = DateTime.UtcNow;
         await userManager.UpdateAsync(user);
 
+        // Publiserer PasswordChangedEvent
+        await PublishPasswordChangedEventAsync(user);
+
         return Ok(new { Message = "Passord ble endret med hell." });
     }
 
@@ -133,6 +139,9 @@ public class AccountController(
 
         user.LastModifiedAt = DateTime.UtcNow;
         await userManager.UpdateAsync(user);
+
+        // Publiserer PasswordChangedEvent
+        await PublishPasswordChangedEventAsync(user);
 
         return Ok(new { Message = "Passord har blitt opprettet for din konto." });
     }
@@ -209,14 +218,33 @@ public class AccountController(
     [Consumes("application/json")]
     public async Task<IActionResult> RecoverPassword([FromBody] RecoverPasswordRequest request)
     {
+        Console.WriteLine($"DEBUG :: Received recover password request");
         var user = await userManager.FindByEmailAsync(request.Email);
+        
+        // Av sikkerhetsgrunner returneres samme respons uavhengig av om brukeren eksisterer
         if (user == null)
         {
+            Console.WriteLine($"DEBUG :: User {request.Email} not found");
             return Ok(new { Message = "Dersom e-posten er registrert, har instruksjoner om tilbakestilling blitt sendt." });
         }
 
         var resetToken = await userManager.GeneratePasswordResetTokenAsync(user);
-        return Ok(new { Message = "Instruksjoner om tilbakestilling er generert.", ResetToken = resetToken });
+
+        var baseUrl = appSettings.Value.FrontendUrl.TrimEnd('/');
+        var resetLink = $"{baseUrl}/reset-password?email={Uri.EscapeDataString(user.Email!)}&token={Uri.EscapeDataString(resetToken)}";
+        
+        Console.WriteLine($"DEBUG :: Password reset link: {resetLink}", resetLink);
+        await publishEndpoint.Publish(new PasswordResetRequestedEvent
+        {
+            UserId = user.Id,
+            Email = user.Email!,
+            Name = GetFullName(user),
+            ResetLink = resetLink,
+            RequestedAt = DateTime.UtcNow
+        });
+            
+        Console.WriteLine($"DEBUG :: All ok, return ok");
+        return Ok(new { Message = "Dersom e-posten er registrert, har instruksjoner om tilbakestilling blitt sendt." });
     }
 
     // --- 10. TILBAKESTILL PASSORD (Anonym - Brukes fra lenken i e-posten) ---
@@ -235,6 +263,9 @@ public class AccountController(
 
         user.LastModifiedAt = DateTime.UtcNow;
         await userManager.UpdateAsync(user);
+
+        // Publiserer PasswordChangedEvent
+        await PublishPasswordChangedEventAsync(user);
 
         return Ok(new { Message = "Passordet ditt er tilbakestilt. Du kan nå logge inn med ditt nye passord." });
     }
@@ -256,7 +287,7 @@ public class AccountController(
         // Henter nødvendig informasjon FØR sletting for å sende med i eventen
         var userId = user.Id;
         var email = user.Email ?? string.Empty;
-        var name = $"{user.FirstName} {user.LastName}".Trim();
+        var name = GetFullName(user);
         var deletedAt = DateTime.UtcNow;
 
         var result = await userManager.DeleteAsync(user);
@@ -278,6 +309,28 @@ public class AccountController(
     }
 
     // --- HJELPEMETODER ---
+    private async Task PublishPasswordChangedEventAsync(ApplicationUser user)
+    {
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var deviceInfo = Request.Headers.UserAgent.ToString();
+
+        await publishEndpoint.Publish(new PasswordChangedEvent
+        {
+            UserId = user.Id,
+            Name = GetFullName(user),
+            Email = user.Email ?? string.Empty,
+            ChangedAt = DateTime.UtcNow,
+            IpAddress = string.IsNullOrWhiteSpace(ipAddress) ? null : ipAddress,
+            DeviceInfo = string.IsNullOrWhiteSpace(deviceInfo) ? null : deviceInfo
+        });
+    }
+
+    private static string GetFullName(ApplicationUser user)
+    {
+        var fullName = $"{user.FirstName} {user.LastName}".Trim();
+        return string.IsNullOrWhiteSpace(fullName) ? user.UserName ?? string.Empty : fullName;
+    }
+
     private async Task<UserProfileResponse> MapToUserProfileResponseAsync(ApplicationUser user)
     {
         var roles = await userManager.GetRolesAsync(user);
