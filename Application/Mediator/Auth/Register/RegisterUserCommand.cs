@@ -1,6 +1,6 @@
 using MediatR;
 
-namespace Application.Mediator.Register;
+namespace Application.Mediator.Auth.Register;
 
 public record RegisterUserCommand(
     string Email,

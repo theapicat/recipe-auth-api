@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using Application.Mediator.Register;
+using Application.Mediator.Auth.Register;
 using Contracts.Events;
 using Domain.DTOs;
 using Domain.Enums;
@@ -17,14 +17,16 @@ using Persistence.Context;
 namespace API.Controllers;
 
 [ApiController]
-[Route("~/account")]
+[Route("api/auth/account")]
 public class AccountController(
     IMediator mediator,
     UserManager<ApplicationUser> userManager,
+    SignInManager<ApplicationUser> signInManager,
     IPublishEndpoint publishEndpoint,
     IOptions<AppSettings> appSettings) : ControllerBase
 {
     // --- 1. REGISTRERING (Anonym) ---
+    // URL: POST /api/auth/account/register
     [HttpPost("register")]
     [Consumes("application/x-www-form-urlencoded", "application/json")]
     public async Task<IActionResult> Register([FromForm] RegisterRequest request)
@@ -52,6 +54,7 @@ public class AccountController(
     }
 
     // --- 2. HENT MIN PROFIL (Innlogget) ---
+    // URL: GET /api/auth/account/me
     [HttpGet("me")]
     [Authorize(AuthenticationSchemes = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme)]
     public async Task<IActionResult> GetProfile()
@@ -64,6 +67,7 @@ public class AccountController(
     }
 
     // --- 3. OPPDATER PROFIL (Innlogget) ---
+    // URL: PUT /api/auth/account/profile
     [HttpPut("profile")]
     [Consumes("application/json")]
     [Authorize(AuthenticationSchemes = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme)]
@@ -93,6 +97,7 @@ public class AccountController(
     }
 
     // --- 4. BYTT PASSORD (Innlogget - Brukere med eksisterende passord) ---
+    // URL: POST /api/auth/account/change-password
     [HttpPost("change-password")]
     [Consumes("application/json")]
     [Authorize(AuthenticationSchemes = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme)]
@@ -117,6 +122,7 @@ public class AccountController(
     }
 
     // --- 5. OPPRETT PASSORD (Innlogget - For Google-brukere uten lokalt passord) ---
+    // URL: POST /api/auth/account/set-password
     [HttpPost("set-password")]
     [Consumes("application/json")]
     [Authorize(AuthenticationSchemes = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme)]
@@ -147,6 +153,7 @@ public class AccountController(
     }
 
     // --- 6. FULLFØR VELKOMST (Innlogget) ---
+    // URL: GET /api/auth/account/complete-welcome
     [HttpGet("complete-welcome")]
     [Authorize(AuthenticationSchemes = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme)]
     public async Task<IActionResult> CompleteWelcome()
@@ -168,6 +175,7 @@ public class AccountController(
     }
 
     // --- 7. SEND BEKREFTELSESE-POST PÅ NYTT (Innlogget) ---
+    // URL: POST /api/auth/account/resend-confirmation
     [HttpPost("resend-confirmation")]
     [Authorize(AuthenticationSchemes = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme)]
     public async Task<IActionResult> ResendConfirmation()
@@ -186,6 +194,7 @@ public class AccountController(
     }
 
     // --- 8. BEKREFT E-POST (Anonym - Brukes fra lenken i e-posten) ---
+    // URL: POST /api/auth/account/confirm-email
     [HttpPost("confirm-email")]
     [Consumes("application/json")]
     public async Task<IActionResult> ConfirmEmail([FromBody] ConfirmEmailRequest request)
@@ -214,6 +223,7 @@ public class AccountController(
     }
 
     // --- 9. RECOVER / GLEMT PASSORD (Anonym) ---
+    // URL: POST /api/auth/account/recover
     [HttpPost("recover")]
     [Consumes("application/json")]
     public async Task<IActionResult> RecoverPassword([FromBody] RecoverPasswordRequest request)
@@ -233,7 +243,7 @@ public class AccountController(
         var baseUrl = appSettings.Value.FrontendUrl.TrimEnd('/');
         var resetLink = $"{baseUrl}/reset-password?email={Uri.EscapeDataString(user.Email!)}&token={Uri.EscapeDataString(resetToken)}";
         
-        Console.WriteLine($"DEBUG :: Password reset link: {resetLink}", resetLink);
+        Console.WriteLine($"DEBUG :: Password reset link: {resetLink}");
         await publishEndpoint.Publish(new PasswordResetRequestedEvent
         {
             UserId = user.Id,
@@ -248,6 +258,7 @@ public class AccountController(
     }
 
     // --- 10. TILBAKESTILL PASSORD (Anonym - Brukes fra lenken i e-posten) ---
+    // URL: POST /api/auth/account/reset-password
     [HttpPost("reset-password")]
     [Consumes("application/json")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
@@ -271,6 +282,7 @@ public class AccountController(
     }
 
     // --- 11. SLETT KONTO (Innlogget) ---
+    // URL: DELETE /api/auth/account/me
     [HttpDelete("me")]
     [Authorize(AuthenticationSchemes = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme)]
     public async Task<IActionResult> DeleteAccount()
@@ -306,6 +318,35 @@ public class AccountController(
         });
 
         return Ok(new { Message = "Kontoen din er slettet." });
+    }
+
+    // --- 12. START EKSTERN INNLOGGING (Google Challenge) ---
+    // URL: GET /api/auth/account/external-login
+    [HttpGet("external-login")]
+    public IActionResult ExternalLogin([FromQuery] string provider = "Google")
+    {
+        if (string.IsNullOrWhiteSpace(provider) || provider.Contains('/'))
+        {
+            provider = "Google";
+        }
+
+        var redirectUrl = Url.Action(nameof(ExternalLoginCallback), "Account");
+        var properties = signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
+
+        return Challenge(properties, provider);
+    }
+
+    // --- 13. CALLBACK FRA GOOGLE OAUTH ---
+    // URL: GET /api/auth/account/external-login-callback
+    [HttpGet("external-login-callback")]
+    public async Task<IActionResult> ExternalLoginCallback([FromQuery] string? remoteError = null)
+    {
+        var info = await signInManager.GetExternalLoginInfoAsync();
+        var command = new ProcessGoogleCallbackCommand(info, remoteError);
+
+        var result = await mediator.Send(command);
+
+        return Redirect(result.RedirectUrl!);
     }
 
     // --- HJELPEMETODER ---

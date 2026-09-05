@@ -10,7 +10,7 @@ public static class OpenIddictExtensions
 {
     public static IServiceCollection AddCustomIdentityAndOpenIddict(this IServiceCollection services, IConfiguration configuration)
     {
-        // 1. Registrer og hent JwtOptions
+        // 1. Registrer og hent JwtOptions fra appsettings.json
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
 
         var jwtOptions = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>();
@@ -19,6 +19,8 @@ public static class OpenIddictExtensions
         {
             throw new InvalidOperationException("Konfigurasjon for 'JWT:SecretKey' mangler eller er tom i appsettings.");
         }
+
+        var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey));
 
         // 2. ASP.NET Core Identity
         services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
@@ -43,14 +45,17 @@ public static class OpenIddictExtensions
             .AddServer(options =>
             {
                 // OAuth2 / OIDC Endepunkter
-                options.SetTokenEndpointUris("/connect/token");
+                options.SetTokenEndpointUris("/api/auth/connect/token");
 
                 // Flows som støttes
                 options.AllowPasswordFlow()
                        .AllowRefreshTokenFlow();
 
-                // Symmetrisk nøkkel for deling med Gateway
-                options.AddSigningKey(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey)));
+                // Symmetrisk nøkkel for deling med Gateway og TokenService
+                options.AddSigningKey(signingKey);
+
+                // Tving ukrypterte JWT-er slik at TokenService sine tokens kan leses
+                options.DisableAccessTokenEncryption();
 
                 // Utviklingssertifikater
                 options.AddDevelopmentEncryptionCertificate()
@@ -59,12 +64,24 @@ public static class OpenIddictExtensions
                 // ASP.NET Core MVC-passthrough
                 options.UseAspNetCore()
                        .EnableTokenEndpointPassthrough()
-                       .DisableTransportSecurityRequirement(); // Tillat HTTP under lokal dev
+                       .DisableTransportSecurityRequirement();
             })
             .AddValidation(options =>
             {
                 options.UseLocalServer();
                 options.UseAspNetCore();
+
+                // Konfigurer valideringen til å godta "recipe-auth-app" fra appsettings.json
+                options.Configure(valOptions =>
+                {
+                    valOptions.TokenValidationParameters.ValidateIssuer = true;
+                    valOptions.TokenValidationParameters.ValidIssuer = jwtOptions.Issuer; // "recipe-auth-app"
+                    valOptions.TokenValidationParameters.ValidateAudience = !string.IsNullOrWhiteSpace(jwtOptions.Audience);
+                    valOptions.TokenValidationParameters.ValidAudience = jwtOptions.Audience; // "recipe-frontend"
+                    valOptions.TokenValidationParameters.ValidateIssuerSigningKey = true;
+                    valOptions.TokenValidationParameters.IssuerSigningKey = signingKey;
+                    valOptions.TokenValidationParameters.ValidateLifetime = true;
+                });
             });
 
         return services;

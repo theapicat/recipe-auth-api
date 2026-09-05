@@ -1,14 +1,16 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
-    </PropertyGroup>
+      <UserSecretsId>88b847d2-1a23-438f-bae9-6200a1e472aa</UserSecretsId>
+  </PropertyGroup>
 
     <ItemGroup>
       <PackageReference Include="MassTransit.RabbitMQ" Version="8.3.0" />
       <PackageReference Include="MediatR" Version="14.2.0" />
+      <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.11" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.11">
         <PrivateAssets>all</PrivateAssets>
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

@@ -1,7 +1,7 @@
 using Domain.DTOs;
 using Microsoft.AspNetCore.Identity;
 
-namespace Application.Mediator.Register;
+namespace Application.Mediator.Auth.Register;
 
 public record RegisterUserResult(
     bool IsSuccess,

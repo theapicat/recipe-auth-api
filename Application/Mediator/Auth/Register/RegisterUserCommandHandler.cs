@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Persistence.Context;
 
-namespace Application.Mediator.Register;
+namespace Application.Mediator.Auth.Register;
 
 public class RegisterUserCommandHandler(
     UserManager<ApplicationUser> userManager,

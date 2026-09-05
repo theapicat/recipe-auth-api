@@ -1,10 +1,18 @@
 using API.Extensions;
+using Microsoft.AspNetCore.HttpOverrides;
 using Persistence.Seeders;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddSerilogLogging();
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 // Registrer tjenester via Extension-metodene våre
 builder.Services.AddApplicationServices(builder.Configuration);
@@ -18,6 +26,8 @@ builder.Services.AddMassTransitServices(builder.Configuration);
 builder.Services.AddQuartzJobs(builder.Configuration);
 
 var app = builder.Build();
+
+app.UseForwardedHeaders(); 
 
 app.UseSerilogRequestLogging();
 
