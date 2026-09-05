@@ -13,18 +13,15 @@ namespace Application.Mediator.Auth.Register;
 public class RegisterUserCommandHandler(
     UserManager<ApplicationUser> userManager,
     IPublishEndpoint publishEndpoint,
-    IOptions<AppSettings> appSettings,
-    ILogger<RegisterUserCommandHandler> logger) : IRequestHandler<RegisterUserCommand, RegisterUserResult>
+    IOptions<AppSettings> appSettings) : IRequestHandler<RegisterUserCommand, RegisterUserResult>
 {
     public async Task<RegisterUserResult> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
     {
-        logger.LogInformation("1. Starter registrering for e-post: {Email}", request.Email);
 
         // 1. Sjekk om e-post finnes fra før
         var existingUser = await userManager.FindByEmailAsync(request.Email);
         if (existingUser != null)
         {
-            logger.LogWarning("Registrering avbrutt: E-post {Email} er allerede i bruk.", request.Email);
             return new RegisterUserResult(false, ErrorMessage: "E-postadressen er allerede i bruk.");
         }
 
@@ -40,16 +37,12 @@ public class RegisterUserCommandHandler(
             LastModifiedAt = DateTime.UtcNow
         };
 
-        logger.LogInformation("2. Prøver å opprette bruker i databasen via Identity...");
         var result = await userManager.CreateAsync(user, request.Password);
         if (!result.Succeeded)
         {
-            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-            logger.LogError("Identity-feil ved opprettelse av bruker {Email}: {Errors}", request.Email, errors);
             return new RegisterUserResult(false, Errors: result.Errors);
         }
 
-        logger.LogInformation("3. Bruker {UserId} opprettet i databasen. Legger til i rolle 'user'...", user.Id);
         await userManager.AddToRoleAsync(user, "user");
 
         // 3. Generer bekreftelses-token og bygg bekreftelseslenke fra sterk typet konfigurasjon
@@ -59,8 +52,6 @@ public class RegisterUserCommandHandler(
         var confirmationLink = $"{baseUrl}/confirm-email?userId={user.Id}&token={Uri.EscapeDataString(confirmationToken)}";
 
         // 4. Publiser hendelsen til RabbitMQ (Sendes til recipe-notification-service)
-        logger.LogInformation("4. Publiserer UserRegisteredEvent til RabbitMQ via MassTransit for {Email}...", user.Email);
-
         await publishEndpoint.Publish(new UserRegisteredEvent
         {
             UserId = user.Id,
@@ -69,8 +60,6 @@ public class RegisterUserCommandHandler(
             ConfirmationLink = confirmationLink,
             RegisteredAt = user.CreatedAt
         }, cancellationToken);
-
-        logger.LogInformation("5. UserRegisteredEvent ble publisert til RabbitMQ med hell for {Email}!", user.Email);
 
         // 5. Bygg profil-response
         var roles = await userManager.GetRolesAsync(user);

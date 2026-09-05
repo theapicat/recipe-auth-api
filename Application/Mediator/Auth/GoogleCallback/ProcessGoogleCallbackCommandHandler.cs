@@ -16,8 +16,7 @@ public class ProcessGoogleCallbackCommandHandler(
     SignInManager<ApplicationUser> signInManager,
     IPublishEndpoint publishEndpoint,
     IOptions<AppSettings> appSettings,
-    ITokenService tokenService,
-    ILogger<ProcessGoogleCallbackCommandHandler> logger) 
+    ITokenService tokenService) 
     : IRequestHandler<ProcessGoogleCallbackCommand, ProcessGoogleCallbackResult>
 {
     public async Task<ProcessGoogleCallbackResult> Handle(ProcessGoogleCallbackCommand request, CancellationToken cancellationToken)
@@ -26,14 +25,12 @@ public class ProcessGoogleCallbackCommandHandler(
 
         if (!string.IsNullOrWhiteSpace(request.RemoteError))
         {
-            logger.LogWarning("Google OAuth feilet med feilmelding: {Error}", request.RemoteError);
             return new ProcessGoogleCallbackResult(false, RedirectUrl: $"{frontendUrl}/login?error={Uri.EscapeDataString(request.RemoteError)}");
         }
 
         var info = request.ExternalLoginInfo;
         if (info is null)
         {
-            logger.LogWarning("Kunne ikke hente ExternalLoginInfo fra Google.");
             return new ProcessGoogleCallbackResult(false, RedirectUrl: $"{frontendUrl}/login?error=Kunne+ikke+hente+Google-profil");
         }
 
@@ -51,7 +48,6 @@ public class ProcessGoogleCallbackCommandHandler(
             var email = info.Principal.FindFirstValue(ClaimTypes.Email);
             if (string.IsNullOrWhiteSpace(email))
             {
-                logger.LogWarning("E-postadresse mangler fra Google-profilen.");
                 return new ProcessGoogleCallbackResult(false, RedirectUrl: $"{frontendUrl}/login?error=Epost+mangler+fra+Google");
             }
 
@@ -60,7 +56,6 @@ public class ProcessGoogleCallbackCommandHandler(
             if (user is not null)
             {
                 // Brukeren finnes fra før. Knytt Google til kontoen.
-                logger.LogInformation("Knytter Google-login til eksisterende bruker {UserId}.", user.Id);
                 await userManager.AddLoginAsync(user, info);
             }
             else
@@ -84,15 +79,11 @@ public class ProcessGoogleCallbackCommandHandler(
                 var createResult = await userManager.CreateAsync(user);
                 if (!createResult.Succeeded)
                 {
-                    var errors = string.Join(", ", createResult.Errors.Select(e => e.Description));
-                    logger.LogError("Identity-feil ved opprettelse av Google-bruker {Email}: {Errors}", email, errors);
                     return new ProcessGoogleCallbackResult(false, RedirectUrl: $"{frontendUrl}/login?error=Kunne+ikke+opprette+bruker");
                 }
 
                 await userManager.AddLoginAsync(user, info);
                 await userManager.AddToRoleAsync(user, "user");
-
-                logger.LogInformation("Ny bruker {UserId} opprettet via Google OAuth. Publiserer UserRegisteredWithGoogleEvent til MassTransit...", user.Id);
 
                 await publishEndpoint.Publish(new UserRegisteredWithGoogleEvent
                 {
@@ -106,7 +97,6 @@ public class ProcessGoogleCallbackCommandHandler(
 
         if (user is null || await userManager.IsLockedOutAsync(user))
         {
-            logger.LogWarning("Bruker {UserId} er sperret eller ble ikke funnet.", user?.Id);
             return new ProcessGoogleCallbackResult(false, RedirectUrl: $"{frontendUrl}/login?error=Kontoen+er+sperret");
         }
 

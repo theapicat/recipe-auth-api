@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Application.Mediator.Auth.GoogleCallback;
 using Application.Mediator.Auth.Register;
 using Contracts.Events;
 using Domain.DTOs;
