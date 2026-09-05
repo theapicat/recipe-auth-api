@@ -1,10 +1,10 @@
-namespace Contracts.Events;
+namespace Contracts.Events.SystemActions;
 
-public record Confirmation14DaysReminderEvent
+public record Confirmation7DaysReminderEvent
 {
     public Guid UserId { get; init; }
     public string Email { get; init; } = string.Empty;
     public string Name { get; init; } = string.Empty;
     public string ConfirmationLink { get; init; } = string.Empty;
-    public DateTime LockedAt { get; init; }
+    public DateTime RegisteredAt { get; init; }
 }

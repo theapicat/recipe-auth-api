@@ -1,4 +1,4 @@
-namespace Contracts.Events;
+namespace Contracts.Events.UserActions;
 
 public record ContactFormSubmittedEvent
 {

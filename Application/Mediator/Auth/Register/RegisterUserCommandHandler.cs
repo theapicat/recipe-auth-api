@@ -1,10 +1,9 @@
-using Contracts.Events;
+using Contracts.Events.UserActions;
 using Domain.DTOs;
 using Domain.Options;
 using MassTransit;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Persistence.Context;
 

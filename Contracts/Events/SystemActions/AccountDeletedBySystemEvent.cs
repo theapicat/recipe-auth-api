@@ -1,4 +1,4 @@
-namespace Contracts.Events;
+namespace Contracts.Events.SystemActions;
 
 public record UserAccountDeletedBySystemEvent
 {

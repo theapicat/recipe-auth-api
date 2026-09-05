@@ -1,6 +1,6 @@
 using System.Security.Claims;
-using Contracts.Events;
 using Contracts.Events.AdminActions;
+using Contracts.Events.UserActions;
 using Domain.DTOs.Admin;
 using Domain.Enums;
 using Domain.Options;

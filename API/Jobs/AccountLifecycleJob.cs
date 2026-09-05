@@ -1,10 +1,9 @@
-using Contracts.Events;
+using Contracts.Events.SystemActions;
 using Domain.Enums;
 using Domain.Options;
 using MassTransit;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Persistence.Context;
 using Quartz;

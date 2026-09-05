@@ -1,11 +1,10 @@
 using System.Security.Claims;
 using Application.TokenService.Interfaces;
-using Contracts.Events;
+using Contracts.Events.UserActions;
 using Domain.Options;
 using MassTransit;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Persistence.Context;
 

@@ -1,3 +1,5 @@
+namespace Contracts.Events.AdminActions;
+
 public record UserUnlockedByAdminEvent
 {
     public required Guid UserId { get; init; }
