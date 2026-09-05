@@ -44,10 +44,7 @@ public class AccountController(
         if (!result.IsSuccess)
         {
             if (result.Errors != null)
-            {
                 return BadRequest(result.Errors);
-            }
-
             return BadRequest(new { Message = result.ErrorMessage });
         }
 
@@ -79,9 +76,7 @@ public class AccountController(
 
         // Beskyttelse mot endring av systemadministrator
         if (await userManager.IsInRoleAsync(user, "Admin"))
-        {
             return StatusCode(StatusCodes.Status403Forbidden, new { Message = "Profilinformasjonen til systemadministrator er låst og kan ikke endres." });
-        }
 
         user.FirstName = request.FirstName;
         user.LastName = request.LastName;
@@ -89,10 +84,8 @@ public class AccountController(
 
         var result = await userManager.UpdateAsync(user);
         if (!result.Succeeded)
-        {
             return BadRequest(result.Errors);
-        }
-
+        
         var response = await MapToUserProfileResponseAsync(user);
         return Ok(response);
     }
@@ -109,9 +102,7 @@ public class AccountController(
 
         var result = await userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
         if (!result.Succeeded)
-        {
             return BadRequest(result.Errors);
-        }
 
         user.LastModifiedAt = DateTime.UtcNow;
         await userManager.UpdateAsync(user);
@@ -134,15 +125,11 @@ public class AccountController(
 
         var hasPassword = await userManager.HasPasswordAsync(user);
         if (hasPassword)
-        {
             return BadRequest(new { Message = "Kontoen din har allerede et passord. Bruk change-password i stedet." });
-        }
 
         var result = await userManager.AddPasswordAsync(user, request.NewPassword);
         if (!result.Succeeded)
-        {
             return BadRequest(result.Errors);
-        }
 
         user.LastModifiedAt = DateTime.UtcNow;
         await userManager.UpdateAsync(user);
@@ -167,15 +154,13 @@ public class AccountController(
 
         var result = await userManager.UpdateAsync(user);
         if (!result.Succeeded)
-        {
             return BadRequest(result.Errors);
-        }
 
         var response = await MapToUserProfileResponseAsync(user);
         return Ok(response);
     }
 
-    // --- 7. SEND BEKREFTELSESE-POST PÅ NYTT (Innlogget) ---
+// --- 7. SEND BEKREFTELSESE-POST PÅ NYTT (Innlogget) ---
     // URL: POST /api/auth/account/resend-confirmation
     [HttpPost("resend-confirmation")]
     [Authorize(AuthenticationSchemes = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme)]
@@ -191,7 +176,21 @@ public class AccountController(
 
         var confirmationToken = await userManager.GenerateEmailConfirmationTokenAsync(user);
 
-        return Ok(new { Message = "Ny bekreftelseslenke har blitt sendt til din e-postadresse.", ConfirmationToken = confirmationToken });
+        // Bygg bekreftelseslenken for frontend
+        var baseUrl = appSettings.Value.FrontendUrl.TrimEnd('/');
+        var confirmationLink = $"{baseUrl}/confirm-email?userId={user.Id}&token={Uri.EscapeDataString(confirmationToken)}";
+
+        // Publiser event til MassTransit / RabbitMQ
+        await publishEndpoint.Publish(new ResendEmailConfirmationRequestedEvent
+        {
+            UserId = user.Id,
+            Email = user.Email!,
+            Name = GetFullName(user),
+            ConfirmationLink = confirmationLink,
+            RequestedAt = DateTime.UtcNow
+        });
+
+        return Ok(new { Message = "Ny bekreftelseslenke har blitt sendt til din e-postadresse." });
     }
 
     // --- 8. BEKREFT E-POST (Anonym - Brukes fra lenken i e-posten) ---
