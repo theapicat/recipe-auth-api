@@ -11,10 +11,7 @@ using Application.Mediator.Account.Commands.ResetPassword;
 using Application.Mediator.Account.Commands.SetPassword;
 using Application.Mediator.Account.Commands.UpdateProfile;
 using Application.Mediator.Account.Queries.GetUserProfile;
-using Contracts.Events.UserActions;
-using Domain.DTOs;
 using Domain.DTOs.Account;
-using Domain.Enums;
 using Domain.Options;
 using MassTransit;
 using MediatR;
@@ -33,9 +30,7 @@ namespace API.Controllers;
 public class AccountController(
     IMediator mediator,
     UserManager<ApplicationUser> userManager,
-    SignInManager<ApplicationUser> signInManager,
-    IPublishEndpoint publishEndpoint,
-    IOptions<AppSettings> appSettings) : ControllerBase
+    SignInManager<ApplicationUser> signInManager) : ControllerBase
 {
 // --- 1. REGISTRERING (Anonym) ---
 // URL: POST /api/auth/account/register
