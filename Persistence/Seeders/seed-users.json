@@ -1,0 +1,520 @@
+[
+  {
+    "email": "confirmed@example.com",
+    "firstName": "Ola",
+    "lastName": "Nordmann",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 60,
+    "lastLoginDaysAgo": 2
+  },
+  {
+    "email": "unconfirmed@example.com",
+    "firstName": "Kari",
+    "lastName": "Ubekreftet",
+    "emailConfirmed": false,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 3,
+    "lastLoginDaysAgo": 3
+  },
+  {
+    "email": "newuser@example.com",
+    "firstName": "Pelle",
+    "lastName": "Nykomling",
+    "emailConfirmed": false,
+    "welcomeCompleted": false,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 1,
+    "lastLoginDaysAgo": null
+  },
+  {
+    "email": "googleuser@example.com",
+    "firstName": "Google",
+    "lastName": "Bruker",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "isGoogleAccount": true,
+    "createdAtDaysAgo": 90,
+    "lastLoginDaysAgo": 5
+  },
+  {
+    "email": "unconfirmed.7d@example.com",
+    "firstName": "Astrid",
+    "lastName": "Hansen",
+    "emailConfirmed": false,
+    "welcomeCompleted": false,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 8,
+    "lastLoginDaysAgo": null
+  },
+  {
+    "email": "unconfirmed.14d@example.com",
+    "firstName": "Lars",
+    "lastName": "Johansen",
+    "emailConfirmed": false,
+    "welcomeCompleted": false,
+    "password": "DevUser123!",
+    "isLocked": true,
+    "lockoutReason": "UnconfirmedEmail14Days",
+    "lockoutReasonDetails": "Kontoen har vært ubekreftet i 14 dager og er sperret.",
+    "createdAtDaysAgo": 16,
+    "lastLoginDaysAgo": null
+  },
+  {
+    "email": "inactive.6m@example.com",
+    "firstName": "Per",
+    "lastName": "Olsen",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 220,
+    "lastLoginDaysAgo": 190
+  },
+  {
+    "email": "inactive.1y@example.com",
+    "firstName": "Ingrid",
+    "lastName": "Larsen",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "isLocked": true,
+    "lockoutReason": "Inactivity1Year",
+    "lockoutReasonDetails": "Kontoen er sperret pga. 1 års inaktivitet.",
+    "createdAtDaysAgo": 400,
+    "lastLoginDaysAgo": 370
+  },
+  {
+    "email": "locked.manual@example.com",
+    "firstName": "Espen",
+    "lastName": "Spammer",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "isLocked": true,
+    "lockoutReason": "ManualAdminLock",
+    "lockoutReasonDetails": "Sperret av administrator pga. uønsket adferd.",
+    "createdAtDaysAgo": 45,
+    "lastLoginDaysAgo": 10
+  },
+  {
+    "email": "sofie.pedersen@example.com",
+    "firstName": "Sofie",
+    "lastName": "Pedersen",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 30,
+    "lastLoginDaysAgo": 1
+  },
+  {
+    "email": "jonas.andresen@example.com",
+    "firstName": "Jonas",
+    "lastName": "Andresen",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 15,
+    "lastLoginDaysAgo": 3
+  },
+  {
+    "email": "emma.nielsen@example.com",
+    "firstName": "Emma",
+    "lastName": "Nielsen",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 100,
+    "lastLoginDaysAgo": 12
+  },
+  {
+    "email": "henrik.berg@example.com",
+    "firstName": "Henrik",
+    "lastName": "Berg",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 120,
+    "lastLoginDaysAgo": 40
+  },
+  {
+    "email": "nora.solberg@example.com",
+    "firstName": "Nora",
+    "lastName": "Solberg",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 5,
+    "lastLoginDaysAgo": 1
+  },
+  {
+    "email": "mathias.hagen@example.com",
+    "firstName": "Mathias",
+    "lastName": "Hagen",
+    "emailConfirmed": false,
+    "welcomeCompleted": false,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 9,
+    "lastLoginDaysAgo": null
+  },
+  {
+    "email": "thea.fjeld@example.com",
+    "firstName": "Thea",
+    "lastName": "Fjeld",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 250,
+    "lastLoginDaysAgo": 200
+  },
+  {
+    "email": "sander.strand@example.com",
+    "firstName": "Sander",
+    "lastName": "Strand",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 180,
+    "lastLoginDaysAgo": 2
+  },
+  {
+    "email": "idun.moen@example.com",
+    "firstName": "Idun",
+    "lastName": "Moen",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 14,
+    "lastLoginDaysAgo": 7
+  },
+  {
+    "email": "tobias.vik@example.com",
+    "firstName": "Tobias",
+    "lastName": "Vik",
+    "emailConfirmed": false,
+    "welcomeCompleted": false,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 2,
+    "lastLoginDaysAgo": null
+  },
+  {
+    "email": "maja.lii@example.com",
+    "firstName": "Maja",
+    "lastName": "Lii",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "isGoogleAccount": true,
+    "createdAtDaysAgo": 50,
+    "lastLoginDaysAgo": 4
+  },
+  {
+    "email": "filip.bakke@example.com",
+    "firstName": "Filip",
+    "lastName": "Bakke",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 365,
+    "lastLoginDaysAgo": 365
+  },
+  {
+    "email": "sara.kristiansen@example.com",
+    "firstName": "Sara",
+    "lastName": "Kristiansen",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 40,
+    "lastLoginDaysAgo": 15
+  },
+  {
+    "email": "jakob.eriksen@example.com",
+    "firstName": "Jakob",
+    "lastName": "Eriksen",
+    "emailConfirmed": false,
+    "welcomeCompleted": false,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 12,
+    "lastLoginDaysAgo": null
+  },
+  {
+    "email": "linnea.myhre@example.com",
+    "firstName": "Linnea",
+    "lastName": "Myhre",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 75,
+    "lastLoginDaysAgo": 60
+  },
+  {
+    "email": "emil.sivertsen@example.com",
+    "firstName": "Emil",
+    "lastName": "Sivertsen",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 110,
+    "lastLoginDaysAgo": 30
+  },
+  {
+    "email": "mia.foss@example.com",
+    "firstName": "Mia",
+    "lastName": "Foss",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 20,
+    "lastLoginDaysAgo": 1
+  },
+  {
+    "email": "oliver.dale@example.com",
+    "firstName": "Oliver",
+    "lastName": "Dale",
+    "emailConfirmed": false,
+    "welcomeCompleted": false,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 18,
+    "isLocked": true,
+    "lockoutReason": "UnconfirmedEmail14Days",
+    "lockoutReasonDetails": "Konto sperret pga. manglende e-postbekreftelse.",
+    "lastLoginDaysAgo": null
+  },
+  {
+    "email": "vilde.haugen@example.com",
+    "firstName": "Vilde",
+    "lastName": "Haugen",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "isGoogleAccount": true,
+    "createdAtDaysAgo": 210,
+    "lastLoginDaysAgo": 10
+  },
+  {
+    "email": "william.ruud@example.com",
+    "firstName": "William",
+    "lastName": "Ruud",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 80,
+    "lastLoginDaysAgo": 75
+  },
+  {
+    "email": "amalie.tangere@example.com",
+    "firstName": "Amalie",
+    "lastName": "Tangen",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 400,
+    "lastLoginDaysAgo": 380
+  },
+  {
+    "email": "magnus.kleven@example.com",
+    "firstName": "Magnus",
+    "lastName": "Kleven",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 15,
+    "lastLoginDaysAgo": 2
+  },
+  {
+    "email": "tuva.myklebust@example.com",
+    "firstName": "Tuva",
+    "lastName": "Myklebust",
+    "emailConfirmed": false,
+    "welcomeCompleted": false,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 5,
+    "lastLoginDaysAgo": null
+  },
+  {
+    "email": "kristian.eide@example.com",
+    "firstName": "Kristian",
+    "lastName": "Eide",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 300,
+    "lastLoginDaysAgo": 280
+  },
+  {
+    "email": "frida.brekke@example.com",
+    "firstName": "Frida",
+    "lastName": "Brekke",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 6,
+    "lastLoginDaysAgo": 1
+  },
+  {
+    "email": "isak.lunde@example.com",
+    "firstName": "Isak",
+    "lastName": "Lunde",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "isLocked": true,
+    "lockoutReason": "ManualAdminLock",
+    "lockoutReasonDetails": "Sperret etter henvendelse fra bruker.",
+    "createdAtDaysAgo": 90,
+    "lastLoginDaysAgo": 85
+  },
+  {
+    "email": "kaja.amundsen@example.com",
+    "firstName": "Kaja",
+    "lastName": "Amundsen",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "isGoogleAccount": true,
+    "createdAtDaysAgo": 150,
+    "lastLoginDaysAgo": 3
+  },
+  {
+    "email": "axel.flo@example.com",
+    "firstName": "Axel",
+    "lastName": "Flo",
+    "emailConfirmed": false,
+    "welcomeCompleted": false,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 10,
+    "lastLoginDaysAgo": null
+  },
+  {
+    "email": "maren.sund@example.com",
+    "firstName": "Maren",
+    "lastName": "Sund",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 25,
+    "lastLoginDaysAgo": 4
+  },
+  {
+    "email": "sebastian.aase@example.com",
+    "firstName": "Sebastian",
+    "lastName": "Aase",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 190,
+    "lastLoginDaysAgo": 185
+  },
+  {
+    "email": "selma.engen@example.com",
+    "firstName": "Selma",
+    "lastName": "Engen",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 2,
+    "lastLoginDaysAgo": 1
+  },
+  {
+    "email": "kasper.dahl@example.com",
+    "firstName": "Kasper",
+    "lastName": "Dahl",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 140,
+    "lastLoginDaysAgo": 50
+  },
+  {
+    "email": "ingrid.gulliksen@example.com",
+    "firstName": "Ingrid",
+    "lastName": "Gulliksen",
+    "emailConfirmed": false,
+    "welcomeCompleted": false,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 1,
+    "lastLoginDaysAgo": null
+  },
+  {
+    "email": "marius.nygaard@example.com",
+    "firstName": "Marius",
+    "lastName": "Nygaard",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 450,
+    "lastLoginDaysAgo": 410
+  },
+  {
+    "email": "hedda.mikkelsen@example.com",
+    "firstName": "Hedda",
+    "lastName": "Mikkelsen",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 60,
+    "lastLoginDaysAgo": 5
+  },
+  {
+    "email": "benjamin.bjoernstad@example.com",
+    "firstName": "Benjamin",
+    "lastName": "Bjørnstad",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "isGoogleAccount": true,
+    "createdAtDaysAgo": 12,
+    "lastLoginDaysAgo": 2
+  },
+  {
+    "email": "andrea.solheim@example.com",
+    "firstName": "Andrea",
+    "lastName": "Solheim",
+    "emailConfirmed": false,
+    "welcomeCompleted": false,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 15,
+    "isLocked": true,
+    "lockoutReason": "UnconfirmedEmail14Days",
+    "lockoutReasonDetails": "Låst pga. ubekreftet e-post i 14 dager.",
+    "lastLoginDaysAgo": null
+  },
+  {
+    "email": "mathilde.lorenzen@example.com",
+    "firstName": "Mathilde",
+    "lastName": "Lorenzen",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 70,
+    "lastLoginDaysAgo": 20
+  },
+  {
+    "email": "elias.kolstad@example.com",
+    "firstName": "Elias",
+    "lastName": "Kolstad",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 220,
+    "lastLoginDaysAgo": 210
+  },
+  {
+    "email": "helene.sandvik@example.com",
+    "firstName": "Helene",
+    "lastName": "Sandvik",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 8,
+    "lastLoginDaysAgo": 3
+  },
+  {
+    "email": "simen.vatne@example.com",
+    "firstName": "Simen",
+    "lastName": "Vatne",
+    "emailConfirmed": true,
+    "welcomeCompleted": true,
+    "password": "DevUser123!",
+    "createdAtDaysAgo": 95,
+    "lastLoginDaysAgo": 10
+  }
+]

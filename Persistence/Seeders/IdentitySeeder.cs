@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Domain.Enums;
 using Domain.Options;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,7 +29,7 @@ public static class IdentitySeeder
             }
         }
 
-        // 2. Opprett Admin-bruker (Hentes direkte fra sterk typet konfigurasjon)
+        // 2. Opprett Admin-bruker
         if (string.IsNullOrWhiteSpace(adminOptions.Email) || string.IsNullOrWhiteSpace(adminOptions.Password))
         {
             throw new InvalidOperationException("Konfigurasjon for 'AdminUser' (Email/Password) mangler i appsettings.");
@@ -46,7 +48,9 @@ public static class IdentitySeeder
                 LastName = "Admin",
                 EmailConfirmed = true,
                 WelcomeCompleted = true,
-                LastLoginAt = DateTime.UtcNow
+                LastLoginAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+                LastModifiedAt = DateTime.UtcNow
             };
 
             var result = await userManager.CreateAsync(adminUser, adminPassword);
@@ -61,99 +65,136 @@ public static class IdentitySeeder
             }
         }
 
-        // 3. Testbrukere for Dev-modus
+        // 3. Testbrukere for Dev-modus fra JSON-fil
         if (env.IsDevelopment())
         {
-            // A. Fullstendig bekreftet standardbruker
-            var confirmedEmail = "confirmed@example.com";
-            if (await userManager.FindByEmailAsync(confirmedEmail) == null)
-            {
-                var user = new ApplicationUser
-                {
-                    UserName = confirmedEmail,
-                    Email = confirmedEmail,
-                    FirstName = "Ola",
-                    LastName = "Nordmann",
-                    EmailConfirmed = true,
-                    WelcomeCompleted = true,
-                    LastLoginAt = DateTime.UtcNow
-                };
+            await SeedDevUsersFromJsonAsync(userManager, env);
+        }
+    }
 
-                var result = await userManager.CreateAsync(user, "DevUser123!");
+    private static async Task SeedDevUsersFromJsonAsync(UserManager<ApplicationUser> userManager, IHostEnvironment env)
+    {
+        var jsonFilePath = Path.Combine(AppContext.BaseDirectory, "Seeders", "seed-users.json");
+
+        if (!File.Exists(jsonFilePath))
+        {
+            // Sjekk om filen ligger i rot/prosjektmappe dersom den ikke finner den i output-mappen
+            jsonFilePath = Path.Combine(Directory.GetCurrentDirectory(), "Seeders", "seed-users.json");
+            if (!File.Exists(jsonFilePath))
+                return;
+        }
+
+        var jsonContent = await File.ReadAllTextAsync(jsonFilePath);
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        var seedUsers = JsonSerializer.Deserialize<List<SeedUserDto>>(jsonContent, options);
+
+        if (seedUsers == null || seedUsers.Count == 0)
+            return;
+
+        var now = DateTime.UtcNow;
+
+        foreach (var seedUser in seedUsers)
+        {
+            if (await userManager.FindByEmailAsync(seedUser.Email) != null)
+                continue;
+
+            var createdAt = seedUser.CreatedAtDaysAgo.HasValue
+                ? now.AddDays(-seedUser.CreatedAtDaysAgo.Value)
+                : now;
+
+            DateTime? lastLoginAt = seedUser.LastLoginDaysAgo.HasValue
+                ? now.AddDays(-seedUser.LastLoginDaysAgo.Value)
+                : null;
+
+            // Beregn datoer for tidslinjen basert på brukervilkårene
+            DateTime? reminder7dSentAt = null;
+            DateTime? lockout14dSentAt = null;
+            DateTime? inactivity6mSentAt = null;
+            DateTime? inactivity1ySentAt = null;
+
+            if (!seedUser.EmailConfirmed && seedUser.CreatedAtDaysAgo >= 7)
+                reminder7dSentAt = createdAt.AddDays(7);
+
+            if (!seedUser.EmailConfirmed && seedUser.CreatedAtDaysAgo >= 14)
+                lockout14dSentAt = createdAt.AddDays(14);
+
+            var checkInactivityDate = lastLoginAt ?? createdAt;
+            var daysInactive = (now - checkInactivityDate).TotalDays;
+
+            if (daysInactive >= 180)
+                inactivity6mSentAt = checkInactivityDate.AddDays(180);
+
+            if (daysInactive >= 365)
+                inactivity1ySentAt = checkInactivityDate.AddDays(365);
+
+            LockoutReason lockoutReasonEnum = LockoutReason.None;
+            if (!string.IsNullOrWhiteSpace(seedUser.LockoutReason))
+            {
+                Enum.TryParse(seedUser.LockoutReason, out lockoutReasonEnum);
+            }
+
+            var user = new ApplicationUser
+            {
+                UserName = seedUser.Email,
+                Email = seedUser.Email,
+                FirstName = seedUser.FirstName,
+                LastName = seedUser.LastName,
+                EmailConfirmed = seedUser.EmailConfirmed,
+                WelcomeCompleted = seedUser.WelcomeCompleted,
+                CreatedAt = createdAt,
+                LastModifiedAt = createdAt,
+                LastLoginAt = lastLoginAt,
+                Confirmation7DaysReminderSentAt = reminder7dSentAt,
+                Confirmation14DaysLockedSentAt = lockout14dSentAt,
+                InactivityWarning6MonthsSentAt = inactivity6mSentAt,
+                Inactivity1YearLockedSentAt = inactivity1ySentAt,
+                LockoutReason = lockoutReasonEnum,
+                LockoutReasonDetails = seedUser.LockoutReasonDetails
+            };
+
+            IdentityResult result;
+
+            if (seedUser.IsGoogleAccount)
+            {
+                // Opprettes uten lokal passordhash
+                result = await userManager.CreateAsync(user);
+                if (result.Succeeded)
+                {
+                    await userManager.AddToRoleAsync(user, "User");
+                    await userManager.AddLoginAsync(user, new UserLoginInfo("Google", $"google-dev-key-{user.Email}", "Google"));
+                }
+            }
+            else
+            {
+                var password = string.IsNullOrWhiteSpace(seedUser.Password) ? "DevUser123!" : seedUser.Password;
+                result = await userManager.CreateAsync(user, password);
                 if (result.Succeeded)
                 {
                     await userManager.AddToRoleAsync(user, "User");
                 }
             }
 
-            // B. Ubekreftet bruker (skal vise advarselsbanner/resend-skjema)
-            var unconfirmedEmail = "unconfirmed@example.com";
-            if (await userManager.FindByEmailAsync(unconfirmedEmail) == null)
+            // Håndter låsing dersom kilden sier at den er låst
+            if (result.Succeeded && seedUser.IsLocked)
             {
-                var user = new ApplicationUser
-                {
-                    UserName = unconfirmedEmail,
-                    Email = unconfirmedEmail,
-                    FirstName = "Kari",
-                    LastName = "Ubekreftet",
-                    EmailConfirmed = false,
-                    WelcomeCompleted = true,
-                    LastLoginAt = DateTime.UtcNow
-                };
-
-                var result = await userManager.CreateAsync(user, "DevUser123!");
-                if (result.Succeeded)
-                {
-                    await userManager.AddToRoleAsync(user, "User");
-                }
-            }
-
-            // C. Helt ny bruker (ubekreftet e-post + ufullført velkomstsone)
-            var newEmail = "newuser@example.com";
-            if (await userManager.FindByEmailAsync(newEmail) == null)
-            {
-                var user = new ApplicationUser
-                {
-                    UserName = newEmail,
-                    Email = newEmail,
-                    FirstName = "Pelle",
-                    LastName = "Nykomling",
-                    EmailConfirmed = false,
-                    WelcomeCompleted = false
-                };
-
-                var result = await userManager.CreateAsync(user, "DevUser123!");
-                if (result.Succeeded)
-                {
-                    await userManager.AddToRoleAsync(user, "User");
-                }
-            }
-
-            // D. Google-bruker (Inget lokalt passord, koblet via External Login)
-            var googleEmail = "googleuser@example.com";
-            if (await userManager.FindByEmailAsync(googleEmail) == null)
-            {
-                var user = new ApplicationUser
-                {
-                    UserName = googleEmail,
-                    Email = googleEmail,
-                    FirstName = "Google",
-                    LastName = "Bruker",
-                    EmailConfirmed = true,
-                    WelcomeCompleted = true,
-                    LastLoginAt = DateTime.UtcNow
-                };
-
-                // Opprettes uten passord
-                var result = await userManager.CreateAsync(user);
-                if (result.Succeeded)
-                {
-                    await userManager.AddToRoleAsync(user, "User");
-
-                    // Kobler til Google som ekstern innloggingsleverandør
-                    await userManager.AddLoginAsync(user, new UserLoginInfo("Google", "google-dev-provider-key-12345", "Google"));
-                }
+                await userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
             }
         }
+    }
+
+    private class SeedUserDto
+    {
+        public string Email { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public bool EmailConfirmed { get; set; } = true;
+        public bool WelcomeCompleted { get; set; } = true;
+        public string? Password { get; set; }
+        public bool IsGoogleAccount { get; set; } = false;
+        public bool IsLocked { get; set; } = false;
+        public string? LockoutReason { get; set; }
+        public string? LockoutReasonDetails { get; set; }
+        public int? CreatedAtDaysAgo { get; set; }
+        public int? LastLoginDaysAgo { get; set; }
     }
 }
