@@ -7,6 +7,7 @@ using Application.Mediator.Admin.Commands.DeleteAndBlacklistUser;
 using Application.Mediator.Admin.Commands.DeleteUserAdmin;
 using Application.Mediator.Admin.Commands.ManuallyConfirmEmail;
 using Application.Mediator.Admin.Commands.SendPasswordReset;
+using Application.Mediator.Admin.Commands.SendUserEmailAdmin;
 using Application.Mediator.Admin.Commands.UnlockUser;
 using Application.Mediator.Admin.Commands.UpdateUser;
 using Application.Mediator.Admin.Commands.UserLockCommand;
@@ -247,6 +248,35 @@ public class AdminController(IMediator mediator) : ControllerBase
             return NotFound(new { Message = "Svartelisteoppføring ikke funnet." });
 
         return Ok(new { Message = "Oppføringen ble fjernet fra svartelisten." });
+    }
+    
+    // --- 14. SEND MANUELL E-POST TIL BRUKER ---
+    [HttpPost("send-email")]
+    [Consumes("application/json")]
+    public async Task<IActionResult> SendUserEmail([FromBody] SendUserEmailAdminRequest request)
+    {
+        var currentAdminId = GetCurrentAdminId();
+        if (currentAdminId == null)
+            return Unauthorized(new { Message = "Ugyldig eller manglende administratortoken." });
+
+        var command = new SendUserEmailAdminCommand(
+            request.UserId, 
+            request.Subject, 
+            request.Message, 
+            currentAdminId.Value
+        );
+    
+        var result = await mediator.Send(command);
+
+        if (!result.IsSuccess)
+        {
+            if (result.IsBadRequest)
+                return BadRequest(new { Message = result.ErrorMessage });
+
+            return NotFound(new { Message = result.ErrorMessage });
+        }
+
+        return Ok(new { Message = $"E-posten ble sendt til {result.TargetEmail}." });
     }
 
     // --- HJELPEMETODE ---
