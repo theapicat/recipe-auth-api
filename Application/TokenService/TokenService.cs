@@ -20,9 +20,9 @@ public class TokenService(
     public async Task<ClaimsPrincipal> CreateClaimsPrincipalAsync(ApplicationUser user)
     {
         var identity = new ClaimsIdentity(
-            authenticationType: TokenValidationParameters.DefaultAuthenticationType,
-            nameType: OpenIddictConstants.Claims.Name,
-            roleType: OpenIddictConstants.Claims.Role);
+            TokenValidationParameters.DefaultAuthenticationType,
+            OpenIddictConstants.Claims.Name,
+            OpenIddictConstants.Claims.Role);
 
         // 💡 Fortell OpenIddict at dette er et Access Token
         identity.AddClaim(OpenIddictConstants.Claims.TokenType, OpenIddictConstants.TokenTypeHints.AccessToken);
@@ -37,10 +37,7 @@ public class TokenService(
         identity.AddClaim(new Claim(OpenIddictConstants.Claims.FamilyName, user.LastName ?? string.Empty));
 
         var roles = await userManager.GetRolesAsync(user);
-        foreach (var role in roles)
-        {
-            identity.AddClaim(new Claim(OpenIddictConstants.Claims.Role, role));
-        }
+        foreach (var role in roles) identity.AddClaim(new Claim(OpenIddictConstants.Claims.Role, role));
 
         // Sett destinasjon for OpenIddict sine egne valideringsregler
         identity.SetDestinations(_ => new[] { OpenIddictConstants.Destinations.AccessToken });
@@ -54,10 +51,7 @@ public class TokenService(
             OpenIddictConstants.Scopes.OfflineAccess
         );
 
-        if (!string.IsNullOrWhiteSpace(_jwt.Audience))
-        {
-            principal.SetResources(_jwt.Audience);
-        }
+        if (!string.IsNullOrWhiteSpace(_jwt.Audience)) principal.SetResources(_jwt.Audience);
 
         return principal;
     }
@@ -68,7 +62,7 @@ public class TokenService(
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.SecretKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        var issuer = _jwt.Issuer; 
+        var issuer = _jwt.Issuer;
 
         var tokenDescriptor = new SecurityTokenDescriptor
         {
@@ -77,22 +71,21 @@ public class TokenService(
             Issuer = issuer,
             Audience = _jwt.Audience,
             SigningCredentials = credentials,
-        
+
             // 💡 1. TVING RIKTIG TYPE INN I JWT-HEADEREN (Løser ID2089)
             // OpenIddict Validation forventer typen "at+jwt" for et Access Token
-            TokenType = "at+jwt", 
+            TokenType = "at+jwt",
 
             // 💡 2. TVING INN OPENIDDICT SINE INTERNE CLAIMS
             Claims = new Dictionary<string, object>
             {
                 { OpenIddictConstants.Claims.Issuer, issuer },
                 // Denne sikrer at den også ligger i selve payloaden
-                { OpenIddictConstants.Claims.TokenType, OpenIddictConstants.TokenTypeHints.AccessToken } 
+                { OpenIddictConstants.Claims.TokenType, OpenIddictConstants.TokenTypeHints.AccessToken }
             }
         };
 
         var handler = new JsonWebTokenHandler();
         return handler.CreateToken(tokenDescriptor);
     }
-
 }

@@ -8,7 +8,8 @@ namespace API.Extensions;
 
 public static class OpenIddictExtensions
 {
-    public static IServiceCollection AddCustomIdentityAndOpenIddict(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddCustomIdentityAndOpenIddict(this IServiceCollection services,
+        IConfiguration configuration)
     {
         // 1. Registrer og hent JwtOptions fra appsettings.json
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
@@ -16,23 +17,22 @@ public static class OpenIddictExtensions
         var jwtOptions = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>();
 
         if (string.IsNullOrWhiteSpace(jwtOptions?.SecretKey))
-        {
-            throw new InvalidOperationException("Konfigurasjon for 'JWT:SecretKey' mangler eller er tom i appsettings.");
-        }
+            throw new InvalidOperationException(
+                "Konfigurasjon for 'JWT:SecretKey' mangler eller er tom i appsettings.");
 
         var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey));
 
         // 2. ASP.NET Core Identity
         services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
-        {
-            options.Password.RequireDigit = true;
-            options.Password.RequiredLength = 8;
-            options.Password.RequireNonAlphanumeric = false;
-            options.Password.RequireUppercase = true;
-            options.User.RequireUniqueEmail = true;
-        })
-        .AddEntityFrameworkStores<ApplicationDbContext>()
-        .AddDefaultTokenProviders();
+            {
+                options.Password.RequireDigit = true;
+                options.Password.RequiredLength = 8;
+                options.Password.RequireNonAlphanumeric = false;
+                options.Password.RequireUppercase = true;
+                options.User.RequireUniqueEmail = true;
+            })
+            .AddEntityFrameworkStores<ApplicationDbContext>()
+            .AddDefaultTokenProviders();
 
         // 3. OpenIddict Core & Server
         services.AddOpenIddict()
@@ -49,7 +49,7 @@ public static class OpenIddictExtensions
 
                 // Flows som støttes
                 options.AllowPasswordFlow()
-                       .AllowRefreshTokenFlow();
+                    .AllowRefreshTokenFlow();
 
                 // Symmetrisk nøkkel for deling med Gateway og TokenService
                 options.AddSigningKey(signingKey);
@@ -59,12 +59,12 @@ public static class OpenIddictExtensions
 
                 // Utviklingssertifikater
                 options.AddDevelopmentEncryptionCertificate()
-                       .AddDevelopmentSigningCertificate();
+                    .AddDevelopmentSigningCertificate();
 
                 // ASP.NET Core MVC-passthrough
                 options.UseAspNetCore()
-                       .EnableTokenEndpointPassthrough()
-                       .DisableTransportSecurityRequirement();
+                    .EnableTokenEndpointPassthrough()
+                    .DisableTransportSecurityRequirement();
             })
             .AddValidation(options =>
             {
@@ -76,7 +76,8 @@ public static class OpenIddictExtensions
                 {
                     valOptions.TokenValidationParameters.ValidateIssuer = true;
                     valOptions.TokenValidationParameters.ValidIssuer = jwtOptions.Issuer; // "recipe-auth-app"
-                    valOptions.TokenValidationParameters.ValidateAudience = !string.IsNullOrWhiteSpace(jwtOptions.Audience);
+                    valOptions.TokenValidationParameters.ValidateAudience =
+                        !string.IsNullOrWhiteSpace(jwtOptions.Audience);
                     valOptions.TokenValidationParameters.ValidAudience = jwtOptions.Audience; // "recipe-frontend"
                     valOptions.TokenValidationParameters.ValidateIssuerSigningKey = true;
                     valOptions.TokenValidationParameters.IssuerSigningKey = signingKey;

@@ -1,5 +1,6 @@
 using Contracts.Events.UserActions;
 using Domain.DTOs.Account;
+using Domain.DTOs.Account.Responses;
 using Domain.Enums;
 using Domain.Options;
 using MassTransit;
@@ -25,16 +26,15 @@ public class RegisterUserCommandHandler(
 
         var isBlacklisted = await dbContext.BlacklistedEntries
             .AsNoTracking()
-            .AnyAsync(b => 
+            .AnyAsync(b =>
                     (b.Type == BlacklistType.ExactEmail && b.Pattern.ToLower() == normalizedEmail) ||
-                    (b.Type == BlacklistType.Domain && b.Pattern.ToLower() == emailDomain), 
+                    (b.Type == BlacklistType.Domain && b.Pattern.ToLower() == emailDomain),
                 cancellationToken);
 
         if (isBlacklisted)
-        {
-            return RegisterUserResult.Failure("Registrering med denne e-postadressen eller e-postleverandøren er ikke tillatt.");
-        }
-        
+            return RegisterUserResult.Failure(
+                "Registrering med denne e-postadressen eller e-postleverandøren er ikke tillatt.");
+
         // 1. Sjekk om e-post finnes fra før
         var existingUser = await userManager.FindByEmailAsync(request.Email);
         if (existingUser != null)
@@ -60,9 +60,10 @@ public class RegisterUserCommandHandler(
 
         // 3. Generer bekreftelses-token og bygg bekreftelseslenke
         var confirmationToken = await userManager.GenerateEmailConfirmationTokenAsync(user);
-        
+
         var baseUrl = appSettings.Value.FrontendUrl.TrimEnd('/');
-        var confirmationLink = $"{baseUrl}/confirm-email?userId={user.Id}&token={Uri.EscapeDataString(confirmationToken)}";
+        var confirmationLink =
+            $"{baseUrl}/confirm-email?userId={user.Id}&token={Uri.EscapeDataString(confirmationToken)}";
 
         // 4. Navne-fallback og publisering til RabbitMQ
         var fullName = $"{user.FirstName} {user.LastName}".Trim();

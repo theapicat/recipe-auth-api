@@ -1,4 +1,5 @@
 using Domain.DTOs.Account;
+using Domain.DTOs.Account.Responses;
 using Microsoft.AspNetCore.Identity;
 
 namespace Application.Mediator.Account.Commands.CompleteWelcome;
@@ -10,7 +11,18 @@ public class CompleteWelcomeResult
     public IEnumerable<IdentityError>? Errors { get; set; }
     public UserProfileResponse? UserProfile { get; set; }
 
-    public static CompleteWelcomeResult Success(UserProfileResponse profile) => new() { IsSuccess = true, UserProfile = profile };
-    public static CompleteWelcomeResult Failure(string message) => new() { IsSuccess = false, ErrorMessage = message };
-    public static CompleteWelcomeResult Failure(IEnumerable<IdentityError> errors) => new() { IsSuccess = false, Errors = errors };
+    public static CompleteWelcomeResult Success(UserProfileResponse profile)
+    {
+        return new CompleteWelcomeResult { IsSuccess = true, UserProfile = profile };
+    }
+
+    public static CompleteWelcomeResult Failure(string message)
+    {
+        return new CompleteWelcomeResult { IsSuccess = false, ErrorMessage = message };
+    }
+
+    public static CompleteWelcomeResult Failure(IEnumerable<IdentityError> errors)
+    {
+        return new CompleteWelcomeResult { IsSuccess = false, Errors = errors };
+    }
 }

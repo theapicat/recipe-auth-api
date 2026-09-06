@@ -9,8 +9,19 @@ public class ResetPasswordResult
     public string? ErrorMessage { get; set; }
     public IEnumerable<IdentityError>? Errors { get; set; }
 
-    public static ResetPasswordResult Success() => new() { IsSuccess = true };
-    public static ResetPasswordResult NotFound() => new() { IsSuccess = false, IsNotFound = true, ErrorMessage = "Bruker ikke funnet." };
-    public static ResetPasswordResult Failure(IEnumerable<IdentityError> errors) =>
-        new() { IsSuccess = false, ErrorMessage = "Tilbakestilling mislyktes.", Errors = errors };
+    public static ResetPasswordResult Success()
+    {
+        return new ResetPasswordResult { IsSuccess = true };
+    }
+
+    public static ResetPasswordResult NotFound()
+    {
+        return new ResetPasswordResult { IsSuccess = false, IsNotFound = true, ErrorMessage = "Bruker ikke funnet." };
+    }
+
+    public static ResetPasswordResult Failure(IEnumerable<IdentityError> errors)
+    {
+        return new ResetPasswordResult
+            { IsSuccess = false, ErrorMessage = "Tilbakestilling mislyktes.", Errors = errors };
+    }
 }

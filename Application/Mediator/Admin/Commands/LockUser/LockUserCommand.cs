@@ -1,6 +1,6 @@
 using MediatR;
 
-namespace Application.Mediator.Admin.Commands.UserLockCommand;
+namespace Application.Mediator.Admin.Commands.LockUser;
 
 public record LockUserCommand(
     string UserId,

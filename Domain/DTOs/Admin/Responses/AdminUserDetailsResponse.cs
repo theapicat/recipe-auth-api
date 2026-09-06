@@ -1,6 +1,6 @@
-namespace Domain.DTOs.Admin;
+namespace Domain.DTOs.Admin.Responses;
 
-public record AdminUserDetailsDto
+public record AdminUserDetailsResponse
 {
     public required string UserId { get; init; }
     public required string UserName { get; init; }

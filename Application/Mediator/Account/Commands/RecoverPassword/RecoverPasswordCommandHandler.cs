@@ -19,15 +19,13 @@ public class RecoverPasswordCommandHandler(
         var user = await userManager.FindByEmailAsync(request.Email);
 
         // Av sikkerhetsgrunner returneres samme respons uavhengig av om brukeren eksisterer
-        if (user == null)
-        {
-            return RecoverPasswordResult.Success();
-        }
+        if (user == null) return RecoverPasswordResult.Success();
 
         var resetToken = await userManager.GeneratePasswordResetTokenAsync(user);
 
         var baseUrl = appSettings.Value.FrontendUrl.TrimEnd('/');
-        var resetLink = $"{baseUrl}/reset-password?email={Uri.EscapeDataString(user.Email!)}&token={Uri.EscapeDataString(resetToken)}";
+        var resetLink =
+            $"{baseUrl}/reset-password?email={Uri.EscapeDataString(user.Email!)}&token={Uri.EscapeDataString(resetToken)}";
 
         var fullName = $"{user.FirstName} {user.LastName}".Trim();
         var displayName = string.IsNullOrWhiteSpace(fullName) ? user.UserName ?? string.Empty : fullName;

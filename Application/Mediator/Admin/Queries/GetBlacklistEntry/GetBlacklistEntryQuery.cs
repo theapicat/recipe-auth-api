@@ -1,6 +1,6 @@
 using Domain.Entities;
 using MediatR;
 
-namespace Application.Mediator.Account.Queries.GetBlacklistEntry;
+namespace Application.Mediator.Admin.Queries.GetBlacklistEntry;
 
-public record GetBlacklistEntriesQuery() : IRequest<List<BlacklistedEntry>>;
+public record GetBlacklistEntriesQuery : IRequest<List<BlacklistedEntry>>;

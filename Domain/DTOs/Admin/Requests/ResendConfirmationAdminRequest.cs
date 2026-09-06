@@ -1,4 +1,4 @@
-namespace Domain.DTOs.Admin;
+namespace Domain.DTOs.Admin.Requests;
 
 public record ResendConfirmationAdminRequest
 {

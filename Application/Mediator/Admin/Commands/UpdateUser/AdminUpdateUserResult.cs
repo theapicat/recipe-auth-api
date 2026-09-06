@@ -9,7 +9,18 @@ public class AdminUpdateUserResult
     public string? ErrorMessage { get; set; }
     public IEnumerable<IdentityError>? Errors { get; set; }
 
-    public static AdminUpdateUserResult Success() => new() { IsSuccess = true };
-    public static AdminUpdateUserResult NotFound(string message = "Bruker ikke funnet.") => new() { IsSuccess = false, IsNotFound = true, ErrorMessage = message };
-    public static AdminUpdateUserResult Failure(IEnumerable<IdentityError> errors) => new() { IsSuccess = false, Errors = errors };
+    public static AdminUpdateUserResult Success()
+    {
+        return new AdminUpdateUserResult { IsSuccess = true };
+    }
+
+    public static AdminUpdateUserResult NotFound(string message = "Bruker ikke funnet.")
+    {
+        return new AdminUpdateUserResult { IsSuccess = false, IsNotFound = true, ErrorMessage = message };
+    }
+
+    public static AdminUpdateUserResult Failure(IEnumerable<IdentityError> errors)
+    {
+        return new AdminUpdateUserResult { IsSuccess = false, Errors = errors };
+    }
 }

@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Domain.DTOs.Admin;
+namespace Domain.DTOs.Admin.Requests;
 
 public class DeleteAndBlacklistUserAdminRequest
 {

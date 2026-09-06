@@ -16,22 +16,15 @@ public class RefreshTokenGrantCommandHandler(
     public async Task<TokenExchangeResult> Handle(RefreshTokenGrantCommand request, CancellationToken cancellationToken)
     {
         if (request.AuthenticatedPrincipal is null)
-        {
             return TokenExchangeResult.Failure("Ugyldig eller utløpt refresh token.");
-        }
 
         // Hent bruker-ID fra eksisterende token-claims
         var userId = request.AuthenticatedPrincipal.GetClaim(OpenIddictConstants.Claims.Subject);
-        if (string.IsNullOrEmpty(userId))
-        {
-            return TokenExchangeResult.Failure("Ugyldig token-identitetsdata.");
-        }
+        if (string.IsNullOrEmpty(userId)) return TokenExchangeResult.Failure("Ugyldig token-identitetsdata.");
 
         var user = await userManager.FindByIdAsync(userId);
         if (user is null || await userManager.IsLockedOutAsync(user) || !await signInManager.CanSignInAsync(user))
-        {
             return TokenExchangeResult.Failure("Kontoen er sperret eller eksisterer ikke lenger.");
-        }
 
         // Oppdater LastLoginAt ved hver vellykkede token-fornyelse
         user.LastLoginAt = DateTime.UtcNow;

@@ -14,7 +14,7 @@ public class OpenIddictSeeder(IServiceProvider serviceProvider) : IHostedService
         using var scope = serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         await context.Database.EnsureCreatedAsync(cancellationToken);
-        
+
         var manager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
         var appSettings = scope.ServiceProvider.GetRequiredService<IOptions<AppSettings>>().Value;
 
@@ -40,10 +40,7 @@ public class OpenIddictSeeder(IServiceProvider serviceProvider) : IHostedService
                 ClientType = OpenIddictConstants.ClientTypes.Public
             };
 
-            foreach (var permission in allowedPermissions)
-            {
-                webAppDescriptor.Permissions.Add(permission);
-            }
+            foreach (var permission in allowedPermissions) webAppDescriptor.Permissions.Add(permission);
 
             await manager.CreateAsync(webAppDescriptor, cancellationToken);
         }
@@ -59,14 +56,14 @@ public class OpenIddictSeeder(IServiceProvider serviceProvider) : IHostedService
                 ClientType = OpenIddictConstants.ClientTypes.Public
             };
 
-            foreach (var permission in allowedPermissions)
-            {
-                mobileAppDescriptor.Permissions.Add(permission);
-            }
+            foreach (var permission in allowedPermissions) mobileAppDescriptor.Permissions.Add(permission);
 
             await manager.CreateAsync(mobileAppDescriptor, cancellationToken);
         }
     }
 
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task StopAsync(CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
+    }
 }

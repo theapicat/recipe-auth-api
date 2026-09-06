@@ -8,7 +8,19 @@ public class AdminResendConfirmationResult
     public string? ErrorMessage { get; set; }
     public string? TargetEmail { get; set; }
 
-    public static AdminResendConfirmationResult Success(string email) => new() { IsSuccess = true, TargetEmail = email };
-    public static AdminResendConfirmationResult NotFound(string message = "Bruker ikke funnet.") => new() { IsSuccess = false, IsNotFound = true, ErrorMessage = message };
-    public static AdminResendConfirmationResult AlreadyConfirmed(string message = "E-posten er allerede bekreftet.") => new() { IsSuccess = false, IsAlreadyConfirmed = true, ErrorMessage = message };
+    public static AdminResendConfirmationResult Success(string email)
+    {
+        return new AdminResendConfirmationResult { IsSuccess = true, TargetEmail = email };
+    }
+
+    public static AdminResendConfirmationResult NotFound(string message = "Bruker ikke funnet.")
+    {
+        return new AdminResendConfirmationResult { IsSuccess = false, IsNotFound = true, ErrorMessage = message };
+    }
+
+    public static AdminResendConfirmationResult AlreadyConfirmed(string message = "E-posten er allerede bekreftet.")
+    {
+        return new AdminResendConfirmationResult
+            { IsSuccess = false, IsAlreadyConfirmed = true, ErrorMessage = message };
+    }
 }

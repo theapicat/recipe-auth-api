@@ -14,7 +14,8 @@ public class ResendConfirmationCommandHandler(
     IOptions<AppSettings> appSettings)
     : IRequestHandler<ResendConfirmationCommand, ResendConfirmationResult>
 {
-    public async Task<ResendConfirmationResult> Handle(ResendConfirmationCommand request, CancellationToken cancellationToken)
+    public async Task<ResendConfirmationResult> Handle(ResendConfirmationCommand request,
+        CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(request.UserId.ToString());
         if (user == null)
@@ -26,7 +27,8 @@ public class ResendConfirmationCommandHandler(
         var confirmationToken = await userManager.GenerateEmailConfirmationTokenAsync(user);
 
         var baseUrl = appSettings.Value.FrontendUrl.TrimEnd('/');
-        var confirmationLink = $"{baseUrl}/confirm-email?userId={user.Id}&token={Uri.EscapeDataString(confirmationToken)}";
+        var confirmationLink =
+            $"{baseUrl}/confirm-email?userId={user.Id}&token={Uri.EscapeDataString(confirmationToken)}";
 
         var fullName = $"{user.FirstName} {user.LastName}".Trim();
         var displayName = string.IsNullOrWhiteSpace(fullName) ? user.UserName ?? string.Empty : fullName;

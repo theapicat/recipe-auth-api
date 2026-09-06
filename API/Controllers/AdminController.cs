@@ -1,19 +1,20 @@
 using System.Security.Claims;
 using Application.Mediator.Account.Commands.RemoveBlacklistEntry;
-using Application.Mediator.Account.Queries.GetBlacklistEntry;
 using Application.Mediator.Admin.Commands.AddBlacklistEntry;
 using Application.Mediator.Admin.Commands.AdminResendConfirmation;
 using Application.Mediator.Admin.Commands.DeleteAndBlacklistUser;
 using Application.Mediator.Admin.Commands.DeleteUserAdmin;
+using Application.Mediator.Admin.Commands.LockUser;
 using Application.Mediator.Admin.Commands.ManuallyConfirmEmail;
 using Application.Mediator.Admin.Commands.SendPasswordReset;
 using Application.Mediator.Admin.Commands.SendUserEmailAdmin;
 using Application.Mediator.Admin.Commands.UnlockUser;
 using Application.Mediator.Admin.Commands.UpdateUser;
-using Application.Mediator.Admin.Commands.UserLockCommand;
+using Application.Mediator.Admin.Queries.GetBlacklistEntry;
 using Application.Mediator.Admin.Queries.GetUserDetails;
 using Application.Mediator.Admin.Queries.GetUsers;
 using Domain.DTOs.Admin;
+using Domain.DTOs.Admin.Requests;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -186,8 +187,8 @@ public class AdminController(IMediator mediator) : ControllerBase
 
         return Ok(new { Message = $"Bruker {result.TargetEmail} har blitt permanent slettet." });
     }
-    
-        // --- 10. SLETT OG SVARTELIST BRUKER ---
+
+    // --- 10. SLETT OG SVARTELIST BRUKER ---
     [HttpPost("users/delete-and-blacklist")]
     [Consumes("application/json")]
     public async Task<IActionResult> DeleteAndBlacklistUser([FromBody] DeleteAndBlacklistUserAdminRequest request)
@@ -249,7 +250,7 @@ public class AdminController(IMediator mediator) : ControllerBase
 
         return Ok(new { Message = "Oppføringen ble fjernet fra svartelisten." });
     }
-    
+
     // --- 14. SEND MANUELL E-POST TIL BRUKER ---
     [HttpPost("send-email")]
     [Consumes("application/json")]
@@ -260,12 +261,12 @@ public class AdminController(IMediator mediator) : ControllerBase
             return Unauthorized(new { Message = "Ugyldig eller manglende administratortoken." });
 
         var command = new SendUserEmailAdminCommand(
-            request.UserId, 
-            request.Subject, 
-            request.Message, 
+            request.UserId,
+            request.Subject,
+            request.Message,
             currentAdminId.Value
         );
-    
+
         var result = await mediator.Send(command);
 
         if (!result.IsSuccess)

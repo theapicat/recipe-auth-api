@@ -1,4 +1,5 @@
 using Domain.DTOs.Account;
+using Domain.DTOs.Account.Responses;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Persistence.Context;

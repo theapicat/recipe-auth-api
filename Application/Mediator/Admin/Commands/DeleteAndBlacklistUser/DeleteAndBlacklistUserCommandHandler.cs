@@ -14,13 +14,15 @@ public class DeleteAndBlacklistUserCommandHandler(
     IPublishEndpoint publishEndpoint)
     : IRequestHandler<DeleteAndBlacklistUserCommand, DeleteAndBlacklistUserResult>
 {
-    public async Task<DeleteAndBlacklistUserResult> Handle(DeleteAndBlacklistUserCommand request, CancellationToken cancellationToken)
+    public async Task<DeleteAndBlacklistUserResult> Handle(DeleteAndBlacklistUserCommand request,
+        CancellationToken cancellationToken)
     {
         if (!Guid.TryParse(request.UserId, out var targetGuid))
             return DeleteAndBlacklistUserResult.BadRequest("Ugyldig bruker-ID oppgitt.");
 
         if (request.CurrentAdminId == targetGuid)
-            return DeleteAndBlacklistUserResult.BadRequest("Du kan ikke slette/svarteliste din egen administratorkonto.");
+            return DeleteAndBlacklistUserResult.BadRequest(
+                "Du kan ikke slette/svarteliste din egen administratorkonto.");
 
         var user = await userManager.FindByIdAsync(request.UserId);
         if (user == null) return DeleteAndBlacklistUserResult.NotFound();

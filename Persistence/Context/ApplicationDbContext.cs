@@ -22,7 +22,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Pattern).IsRequired().HasMaxLength(256);
-            
+
             // Indeks for superraske oppslag ved registrering
             entity.HasIndex(e => new { e.Pattern, e.Type });
         });
@@ -45,9 +45,6 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         var entries = ChangeTracker.Entries<ApplicationUser>()
             .Where(e => e.State == EntityState.Modified);
 
-        foreach (var entry in entries)
-        {
-            entry.Entity.LastModifiedAt = DateTime.UtcNow;
-        }
+        foreach (var entry in entries) entry.Entity.LastModifiedAt = DateTime.UtcNow;
     }
 }

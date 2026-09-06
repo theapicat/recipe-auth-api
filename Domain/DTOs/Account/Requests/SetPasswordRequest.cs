@@ -1,4 +1,4 @@
-namespace Domain.DTOs.Account;
+namespace Domain.DTOs.Account.Requests;
 
 public class SetPasswordRequest
 {

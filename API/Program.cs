@@ -9,7 +9,8 @@ builder.AddSerilogLogging();
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto |
+                               ForwardedHeaders.XForwardedHost;
     options.KnownIPNetworks.Clear();
     options.KnownProxies.Clear();
 });
@@ -27,7 +28,7 @@ builder.Services.AddQuartzJobs(builder.Configuration);
 
 var app = builder.Build();
 
-app.UseForwardedHeaders(); 
+app.UseForwardedHeaders();
 
 app.UseSerilogRequestLogging();
 

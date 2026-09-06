@@ -1,4 +1,5 @@
 using Domain.DTOs.Account;
+using Domain.DTOs.Account.Responses;
 
 namespace Application.Mediator.Account.Queries.GetUserProfile;
 
@@ -8,9 +9,13 @@ public class GetUserProfileResult
     public string? ErrorMessage { get; set; }
     public UserProfileResponse? UserProfile { get; set; }
 
-    public static GetUserProfileResult Success(UserProfileResponse profile) =>
-        new() { IsSuccess = true, UserProfile = profile };
+    public static GetUserProfileResult Success(UserProfileResponse profile)
+    {
+        return new GetUserProfileResult { IsSuccess = true, UserProfile = profile };
+    }
 
-    public static GetUserProfileResult Failure(string message) =>
-        new() { IsSuccess = false, ErrorMessage = message };
+    public static GetUserProfileResult Failure(string message)
+    {
+        return new GetUserProfileResult { IsSuccess = false, ErrorMessage = message };
+    }
 }

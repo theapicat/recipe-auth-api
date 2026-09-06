@@ -12,13 +12,11 @@ using Application.Mediator.Account.Commands.SetPassword;
 using Application.Mediator.Account.Commands.UpdateProfile;
 using Application.Mediator.Account.Queries.GetUserProfile;
 using Domain.DTOs.Account;
-using Domain.Options;
-using MassTransit;
+using Domain.DTOs.Account.Requests;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 using OpenIddict.Abstractions;
 using OpenIddict.Validation.AspNetCore;
 using Persistence.Context;
@@ -64,7 +62,7 @@ public class AccountController(
     public async Task<IActionResult> GetProfile()
     {
         var user = await GetCurrentUserAsync();
-        if (user == null) 
+        if (user == null)
             return Unauthorized(new { Message = "Ugyldig eller manglende brukertoken." });
 
         var result = await mediator.Send(new GetUserProfileQuery(user.Id));
@@ -232,7 +230,7 @@ public class AccountController(
             if (result.IsNotFound)
                 return NotFound(new { Message = result.ErrorMessage });
 
-            return BadRequest(new { Message = result.ErrorMessage, Errors = result.Errors });
+            return BadRequest(new { Message = result.ErrorMessage, result.Errors });
         }
 
         return Ok(new { Message = "E-postadressen din er bekreftet!" });
@@ -247,7 +245,7 @@ public class AccountController(
         var command = new RecoverPasswordCommand(request.Email);
         var result = await mediator.Send(command);
 
-        return Ok(new { Message = result.Message });
+        return Ok(new { result.Message });
     }
 
     // --- 10. TILBAKESTILL PASSORD (Anonym - Brukes fra lenken i e-posten) ---
@@ -274,7 +272,7 @@ public class AccountController(
             if (result.IsNotFound)
                 return NotFound(new { Message = result.ErrorMessage });
 
-            return BadRequest(new { Message = result.ErrorMessage, Errors = result.Errors });
+            return BadRequest(new { Message = result.ErrorMessage, result.Errors });
         }
 
         return Ok(new { Message = "Passordet ditt er tilbakestilt. Du kan nå logge inn med ditt nye passord." });
@@ -311,10 +309,7 @@ public class AccountController(
     [HttpGet("external-login")]
     public IActionResult ExternalLogin([FromQuery] string provider = "Google")
     {
-        if (string.IsNullOrWhiteSpace(provider) || provider.Contains('/'))
-        {
-            provider = "Google";
-        }
+        if (string.IsNullOrWhiteSpace(provider) || provider.Contains('/')) provider = "Google";
 
         var redirectUrl = Url.Action(nameof(ExternalLoginCallback), "Account");
         var properties = signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
@@ -339,21 +334,18 @@ public class AccountController(
     // DEV :: depicate me please
     private async Task<ApplicationUser?> GetCurrentUserAsync()
     {
-        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier) 
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier)
                            ?? User.FindFirstValue(OpenIddictConstants.Claims.Subject)
                            ?? Request.Headers["X-User-Id"].FirstOrDefault();
 
-        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
-        {
-            return null;
-        }
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId)) return null;
 
         return await userManager.FindByIdAsync(userId.ToString());
     }
-    
+
     private Guid? GetCurrentUserId()
     {
-        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier) 
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier)
                            ?? User.FindFirstValue(OpenIddictConstants.Claims.Subject)
                            ?? Request.Headers["X-User-Id"].FirstOrDefault();
 

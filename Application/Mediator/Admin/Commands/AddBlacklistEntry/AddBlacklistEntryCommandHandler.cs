@@ -8,7 +8,8 @@ namespace Application.Mediator.Admin.Commands.AddBlacklistEntry;
 public class AddBlacklistEntryCommandHandler(ApplicationDbContext dbContext)
     : IRequestHandler<AddBlacklistEntryCommand, AddBlacklistEntryResult>
 {
-    public async Task<AddBlacklistEntryResult> Handle(AddBlacklistEntryCommand request, CancellationToken cancellationToken)
+    public async Task<AddBlacklistEntryResult> Handle(AddBlacklistEntryCommand request,
+        CancellationToken cancellationToken)
     {
         var cleanedPattern = request.Pattern.Trim().ToLowerInvariant().TrimStart('@');
 

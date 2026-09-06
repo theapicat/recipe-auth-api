@@ -9,7 +9,7 @@ public class ApplicationUser : IdentityUser<Guid>
     public string LastName { get; set; } = string.Empty;
 
     public bool WelcomeCompleted { get; set; } = false;
-    
+
     // Tidsstempler for aktivitet
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime LastModifiedAt { get; set; } = DateTime.UtcNow;

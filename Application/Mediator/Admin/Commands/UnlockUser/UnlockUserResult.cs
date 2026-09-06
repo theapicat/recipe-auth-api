@@ -7,6 +7,13 @@ public class UnlockUserResult
     public string? ErrorMessage { get; set; }
     public string? TargetEmail { get; set; }
 
-    public static UnlockUserResult Success(string email) => new() { IsSuccess = true, TargetEmail = email };
-    public static UnlockUserResult NotFound(string message = "Bruker ikke funnet.") => new() { IsSuccess = false, IsNotFound = true, ErrorMessage = message };
+    public static UnlockUserResult Success(string email)
+    {
+        return new UnlockUserResult { IsSuccess = true, TargetEmail = email };
+    }
+
+    public static UnlockUserResult NotFound(string message = "Bruker ikke funnet.")
+    {
+        return new UnlockUserResult { IsSuccess = false, IsNotFound = true, ErrorMessage = message };
+    }
 }

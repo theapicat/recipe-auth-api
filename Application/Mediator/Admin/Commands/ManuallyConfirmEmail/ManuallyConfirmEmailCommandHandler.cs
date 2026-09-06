@@ -12,7 +12,8 @@ public class ManuallyConfirmEmailCommandHandler(
     IPublishEndpoint publishEndpoint)
     : IRequestHandler<ManuallyConfirmEmailCommand, ManuallyConfirmEmailResult>
 {
-    public async Task<ManuallyConfirmEmailResult> Handle(ManuallyConfirmEmailCommand request, CancellationToken cancellationToken)
+    public async Task<ManuallyConfirmEmailResult> Handle(ManuallyConfirmEmailCommand request,
+        CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(request.UserId);
         if (user == null) return ManuallyConfirmEmailResult.NotFound();

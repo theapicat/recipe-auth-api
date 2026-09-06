@@ -7,7 +7,7 @@ namespace API.Extensions;
 public static class MassTransitExtensions
 {
     public static IServiceCollection AddMassTransitServices(
-        this IServiceCollection services, 
+        this IServiceCollection services,
         IConfiguration configuration)
     {
         // Sikrer at RabbitMqOptions er registrert

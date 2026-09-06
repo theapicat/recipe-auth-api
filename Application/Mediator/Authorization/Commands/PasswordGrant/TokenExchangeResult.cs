@@ -8,9 +8,13 @@ public class TokenExchangeResult
     public ClaimsPrincipal? Principal { get; set; }
     public string? ErrorDescription { get; set; }
 
-    public static TokenExchangeResult Success(ClaimsPrincipal principal) =>
-        new() { IsSuccess = true, Principal = principal };
+    public static TokenExchangeResult Success(ClaimsPrincipal principal)
+    {
+        return new TokenExchangeResult { IsSuccess = true, Principal = principal };
+    }
 
-    public static TokenExchangeResult Failure(string errorDescription) =>
-        new() { IsSuccess = false, ErrorDescription = errorDescription };
+    public static TokenExchangeResult Failure(string errorDescription)
+    {
+        return new TokenExchangeResult { IsSuccess = false, ErrorDescription = errorDescription };
+    }
 }

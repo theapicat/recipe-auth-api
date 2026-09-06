@@ -16,13 +16,10 @@ public class AccountLifecycleJob(
     ApplicationDbContext dbContext,
     IPublishEndpoint publishEndpoint,
     IOptions<AccountLifecycleOptions> lifecycleOptions,
-    IOptions<AppSettings> appSettings,
-    ILogger<AccountLifecycleJob> logger) : IJob
+    IOptions<AppSettings> appSettings) : IJob
 {
     public async Task Execute(IJobExecutionContext context)
     {
-        logger.LogInformation("Startet skanning av kontolivssyklus...");
-
         var options = lifecycleOptions.Value;
         var now = DateTime.UtcNow;
 
@@ -40,15 +37,14 @@ public class AccountLifecycleJob(
         await ProcessInactivityDeletionsAsync(options, now, adminUserIds);
 
         await dbContext.SaveChangesAsync();
-        logger.LogInformation("Fullført skanning av kontolivssyklus.");
     }
 
     // ------------------------------------------------------------------
     // Skann 1: 7 dagers ubekreftet e-post påminnelse
     // ------------------------------------------------------------------
     private async Task Process7DaysUnconfirmedRemindersAsync(
-        AccountLifecycleOptions options, 
-        DateTime now, 
+        AccountLifecycleOptions options,
+        DateTime now,
         IQueryable<Guid> adminUserIds)
     {
         var cutoff = now.AddDays(-options.ConfirmationReminderDays);
@@ -77,8 +73,6 @@ public class AccountLifecycleJob(
             user.Confirmation7DaysReminderSentAt = now;
             user.LastModifiedAt = now;
             await userManager.UpdateAsync(user);
-
-            logger.LogInformation("Publisert 7-dagers påminnelse for bruker {UserId}", user.Id);
         }
     }
 
@@ -86,8 +80,8 @@ public class AccountLifecycleJob(
     // Skann 2: 14 dagers ubekreftet e-post sperring
     // ------------------------------------------------------------------
     private async Task Process14DaysUnconfirmedLockoutsAsync(
-        AccountLifecycleOptions options, 
-        DateTime now, 
+        AccountLifecycleOptions options,
+        DateTime now,
         IQueryable<Guid> adminUserIds)
     {
         var cutoff = now.AddDays(-options.ConfirmationLockoutDays);
@@ -121,8 +115,6 @@ public class AccountLifecycleJob(
                 ConfirmationLink = confirmationLink,
                 LockedAt = now
             });
-
-            logger.LogInformation("Sperret bruker {UserId} pga. 14 dagers ubekreftet e-post", user.Id);
         }
     }
 
@@ -130,15 +122,15 @@ public class AccountLifecycleJob(
     // Skann 3: 30 dagers ubekreftet e-post sletting av systemet
     // ------------------------------------------------------------------
     private async Task ProcessUnconfirmedDeletionsAsync(
-        AccountLifecycleOptions options, 
-        DateTime now, 
+        AccountLifecycleOptions options,
+        DateTime now,
         IQueryable<Guid> adminUserIds)
     {
         var cutoff = now.AddDays(-options.ConfirmationDeletionDays);
 
         var usersToDelete = await userManager.Users
             .Where(u => !adminUserIds.Contains(u.Id)
-                        && !u.EmailConfirmed 
+                        && !u.EmailConfirmed
                         && u.CreatedAt <= cutoff)
             .ToListAsync();
 
@@ -157,11 +149,10 @@ public class AccountLifecycleJob(
                     UserId = userId,
                     Email = email,
                     Name = name,
-                    DeletionReason = "Kontoen ble slettet fordi e-postadressen ikke ble bekreftet innen 30 dager (se brukervilkår § 3).",
+                    DeletionReason =
+                        "Kontoen ble slettet fordi e-postadressen ikke ble bekreftet innen 30 dager (se brukervilkår § 3).",
                     DeletedAt = now
                 });
-
-                logger.LogInformation("Slettet bruker {UserId} fra systemet (30 dager ubekreftet)", userId);
             }
         }
     }
@@ -170,8 +161,8 @@ public class AccountLifecycleJob(
     // Skann 4: 6 måneders inaktivitetsvarsel
     // ------------------------------------------------------------------
     private async Task Process6MonthsInactivityWarningsAsync(
-        AccountLifecycleOptions options, 
-        DateTime now, 
+        AccountLifecycleOptions options,
+        DateTime now,
         IQueryable<Guid> adminUserIds)
     {
         var cutoff = now.AddMonths(-options.InactivityWarningMonths);
@@ -188,8 +179,6 @@ public class AccountLifecycleJob(
             user.InactivityWarning6MonthsSentAt = now;
             user.LastModifiedAt = now;
             await userManager.UpdateAsync(user);
-
-            logger.LogInformation("Satt 6 måneders inaktivitetsmerke for bruker {UserId}", user.Id);
         }
     }
 
@@ -197,8 +186,8 @@ public class AccountLifecycleJob(
     // Skann 5: 1 års inaktivitets sperring
     // ------------------------------------------------------------------
     private async Task Process1YearInactivityLockoutsAsync(
-        AccountLifecycleOptions options, 
-        DateTime now, 
+        AccountLifecycleOptions options,
+        DateTime now,
         IQueryable<Guid> adminUserIds)
     {
         var cutoff = now.AddYears(-options.InactivityLockoutYears);
@@ -220,8 +209,6 @@ public class AccountLifecycleJob(
             user.LastModifiedAt = now;
 
             await userManager.UpdateAsync(user);
-
-            logger.LogInformation("Sperret bruker {UserId} pga. 1 års inaktivitet", user.Id);
         }
     }
 
@@ -229,8 +216,8 @@ public class AccountLifecycleJob(
     // Skann 6: Permanent sletting etter 1 års inaktivitet + 30 dagers sperre
     // ------------------------------------------------------------------
     private async Task ProcessInactivityDeletionsAsync(
-        AccountLifecycleOptions options, 
-        DateTime now, 
+        AccountLifecycleOptions options,
+        DateTime now,
         IQueryable<Guid> adminUserIds)
     {
         var cutoff = now.AddDays(-options.InactivityDeletionDays);
@@ -257,11 +244,10 @@ public class AccountLifecycleJob(
                     UserId = userId,
                     Email = email,
                     Name = name,
-                    DeletionReason = "Kontoen ble permanent slettet pga. inaktivitet i over 1 år og manglende reaktivering innen 30-dagers sperreperioden (se brukervilkår § 3).",
+                    DeletionReason =
+                        "Kontoen ble permanent slettet pga. inaktivitet i over 1 år og manglende reaktivering innen 30-dagers sperreperioden (se brukervilkår § 3).",
                     DeletedAt = now
                 });
-
-                logger.LogInformation("Slettet inaktiv bruker {UserId} fra systemet", userId);
             }
         }
     }

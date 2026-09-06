@@ -5,7 +5,7 @@ using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Persistence.Context;
 
-namespace Application.Mediator.Admin.Commands.UserLockCommand;
+namespace Application.Mediator.Admin.Commands.LockUser;
 
 public class LockUserCommandHandler(
     UserManager<ApplicationUser> userManager,

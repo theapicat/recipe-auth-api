@@ -8,12 +8,18 @@ public class SendUserEmailAdminResult
     public string? ErrorMessage { get; set; }
     public string? TargetEmail { get; set; }
 
-    public static SendUserEmailAdminResult Success(string email) => 
-        new() { IsSuccess = true, TargetEmail = email };
+    public static SendUserEmailAdminResult Success(string email)
+    {
+        return new SendUserEmailAdminResult { IsSuccess = true, TargetEmail = email };
+    }
 
-    public static SendUserEmailAdminResult BadRequest(string message) => 
-        new() { IsSuccess = false, IsBadRequest = true, ErrorMessage = message };
+    public static SendUserEmailAdminResult BadRequest(string message)
+    {
+        return new SendUserEmailAdminResult { IsSuccess = false, IsBadRequest = true, ErrorMessage = message };
+    }
 
-    public static SendUserEmailAdminResult NotFound(string message = "Bruker ikke funnet.") => 
-        new() { IsSuccess = false, IsNotFound = true, ErrorMessage = message };
+    public static SendUserEmailAdminResult NotFound(string message = "Bruker ikke funnet.")
+    {
+        return new SendUserEmailAdminResult { IsSuccess = false, IsNotFound = true, ErrorMessage = message };
+    }
 }

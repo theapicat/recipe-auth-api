@@ -21,7 +21,7 @@ public class AuthorizationController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Exchange()
     {
         var request = HttpContext.GetOpenIddictServerRequest()
-            ?? throw new InvalidOperationException("Kunne ikke hente OpenID Connect-forespørselen.");
+                      ?? throw new InvalidOperationException("Kunne ikke hente OpenID Connect-forespørselen.");
 
         // ----------------------------------------------------
         // 1. Password Grant (Førstegangs innlogging med e-post + passord)
@@ -31,10 +31,7 @@ public class AuthorizationController(IMediator mediator) : ControllerBase
             var command = new PasswordGrantCommand(request.Username ?? string.Empty, request.Password ?? string.Empty);
             var result = await mediator.Send(command);
 
-            if (!result.IsSuccess)
-            {
-                return ChallengeWithError(result.ErrorDescription!);
-            }
+            if (!result.IsSuccess) return ChallengeWithError(result.ErrorDescription!);
 
             return SignIn(result.Principal!, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
         }
@@ -44,14 +41,12 @@ public class AuthorizationController(IMediator mediator) : ControllerBase
         // ----------------------------------------------------
         if (request.IsRefreshTokenGrantType())
         {
-            var authResult = await HttpContext.AuthenticateAsync(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+            var authResult =
+                await HttpContext.AuthenticateAsync(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
             var command = new RefreshTokenGrantCommand(authResult.Principal);
             var result = await mediator.Send(command);
 
-            if (!result.IsSuccess)
-            {
-                return ChallengeWithError(result.ErrorDescription!);
-            }
+            if (!result.IsSuccess) return ChallengeWithError(result.ErrorDescription!);
 
             return SignIn(result.Principal!, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
         }
@@ -62,11 +57,10 @@ public class AuthorizationController(IMediator mediator) : ControllerBase
     private IActionResult ChallengeWithError(string description)
     {
         return Challenge(
-            properties: new AuthenticationProperties(new Dictionary<string, string?>
+            new AuthenticationProperties(new Dictionary<string, string?>
             {
                 [OpenIddictServerAspNetCoreConstants.Properties.Error] = OpenIddictConstants.Errors.InvalidGrant,
                 [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = description
-            }),
-            authenticationSchemes: new[] { OpenIddictServerAspNetCoreDefaults.AuthenticationScheme });
+            }), OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
     }
 }

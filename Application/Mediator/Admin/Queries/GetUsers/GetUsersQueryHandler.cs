@@ -1,4 +1,5 @@
 using Domain.DTOs.Admin;
+using Domain.DTOs.Admin.Responses;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -7,16 +8,17 @@ using Persistence.Context;
 namespace Application.Mediator.Admin.Queries.GetUsers;
 
 public class GetUsersQueryHandler(UserManager<ApplicationUser> userManager)
-    : IRequestHandler<GetUsersQuery, List<AdminUserListItemDto>>
+    : IRequestHandler<GetUsersQuery, List<AdminUserListItemResponse>>
 {
-    public async Task<List<AdminUserListItemDto>> Handle(GetUsersQuery request, CancellationToken cancellationToken)
+    public async Task<List<AdminUserListItemResponse>> Handle(GetUsersQuery request,
+        CancellationToken cancellationToken)
     {
         var users = await userManager.Users
             .AsNoTracking()
             .OrderByDescending(u => u.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        var userListItems = new List<AdminUserListItemDto>();
+        var userListItems = new List<AdminUserListItemResponse>();
         foreach (var user in users)
         {
             var roles = await userManager.GetRolesAsync(user);
@@ -26,7 +28,7 @@ public class GetUsersQueryHandler(UserManager<ApplicationUser> userManager)
             var fullName = $"{user.FirstName} {user.LastName}".Trim();
             var displayName = string.IsNullOrWhiteSpace(fullName) ? user.UserName ?? string.Empty : fullName;
 
-            userListItems.Add(new AdminUserListItemDto
+            userListItems.Add(new AdminUserListItemResponse
             {
                 UserId = user.Id.ToString(),
                 Email = user.Email ?? string.Empty,

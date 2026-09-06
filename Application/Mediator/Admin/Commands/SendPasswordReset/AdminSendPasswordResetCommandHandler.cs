@@ -14,14 +14,16 @@ public class AdminSendPasswordResetCommandHandler(
     IOptions<AppSettings> appSettings)
     : IRequestHandler<AdminSendPasswordResetCommand, AdminSendPasswordResetResult>
 {
-    public async Task<AdminSendPasswordResetResult> Handle(AdminSendPasswordResetCommand request, CancellationToken cancellationToken)
+    public async Task<AdminSendPasswordResetResult> Handle(AdminSendPasswordResetCommand request,
+        CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(request.UserId);
         if (user == null) return AdminSendPasswordResetResult.NotFound();
 
         var resetToken = await userManager.GeneratePasswordResetTokenAsync(user);
         var baseUrl = appSettings.Value.FrontendUrl.TrimEnd('/');
-        var resetLink = $"{baseUrl}/reset-password?email={Uri.EscapeDataString(user.Email!)}&token={Uri.EscapeDataString(resetToken)}";
+        var resetLink =
+            $"{baseUrl}/reset-password?email={Uri.EscapeDataString(user.Email!)}&token={Uri.EscapeDataString(resetToken)}";
 
         var fullName = $"{user.FirstName} {user.LastName}".Trim();
         var displayName = string.IsNullOrWhiteSpace(fullName) ? user.UserName ?? string.Empty : fullName;

@@ -9,8 +9,23 @@ public class DeleteAccountResult
     public string? ErrorMessage { get; set; }
     public IEnumerable<IdentityError>? Errors { get; set; }
 
-    public static DeleteAccountResult Success() => new() { IsSuccess = true };
-    public static DeleteAccountResult Forbidden(string message) => new() { IsSuccess = false, IsForbidden = true, ErrorMessage = message };
-    public static DeleteAccountResult Failure(string message) => new() { IsSuccess = false, ErrorMessage = message };
-    public static DeleteAccountResult Failure(IEnumerable<IdentityError> errors) => new() { IsSuccess = false, Errors = errors };
+    public static DeleteAccountResult Success()
+    {
+        return new DeleteAccountResult { IsSuccess = true };
+    }
+
+    public static DeleteAccountResult Forbidden(string message)
+    {
+        return new DeleteAccountResult { IsSuccess = false, IsForbidden = true, ErrorMessage = message };
+    }
+
+    public static DeleteAccountResult Failure(string message)
+    {
+        return new DeleteAccountResult { IsSuccess = false, ErrorMessage = message };
+    }
+
+    public static DeleteAccountResult Failure(IEnumerable<IdentityError> errors)
+    {
+        return new DeleteAccountResult { IsSuccess = false, Errors = errors };
+    }
 }

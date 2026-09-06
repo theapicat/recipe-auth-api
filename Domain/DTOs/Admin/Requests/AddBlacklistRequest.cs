@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using Domain.Enums;
 
-namespace Domain.DTOs.Admin;
+namespace Domain.DTOs.Admin.Requests;
 
 public class AddBlacklistRequest
 {

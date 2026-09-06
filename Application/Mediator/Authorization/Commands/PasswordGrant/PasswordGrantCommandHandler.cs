@@ -13,25 +13,17 @@ public class PasswordGrantCommandHandler(
 {
     public async Task<TokenExchangeResult> Handle(PasswordGrantCommand request, CancellationToken cancellationToken)
     {
-        var user = await userManager.FindByEmailAsync(request.Username) 
+        var user = await userManager.FindByEmailAsync(request.Username)
                    ?? await userManager.FindByNameAsync(request.Username);
 
-        if (user is null)
-        {
-            return TokenExchangeResult.Failure("Ugyldig e-post eller passord.");
-        }
+        if (user is null) return TokenExchangeResult.Failure("Ugyldig e-post eller passord.");
 
         // Sjekk om kontoen er sperret eller ikke kan logge inn
         if (await userManager.IsLockedOutAsync(user) || !await signInManager.CanSignInAsync(user))
-        {
             return TokenExchangeResult.Failure("Kontoen din er sperret eller deaktivert.");
-        }
 
-        var result = await signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true);
-        if (!result.Succeeded)
-        {
-            return TokenExchangeResult.Failure("Ugyldig e-post eller passord.");
-        }
+        var result = await signInManager.CheckPasswordSignInAsync(user, request.Password, true);
+        if (!result.Succeeded) return TokenExchangeResult.Failure("Ugyldig e-post eller passord.");
 
         // Oppdater LastLoginAt ved vellykket innlogging
         user.LastLoginAt = DateTime.UtcNow;

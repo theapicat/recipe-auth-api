@@ -1,4 +1,5 @@
 using Domain.DTOs.Admin;
+using Domain.DTOs.Admin.Responses;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Persistence.Context;
@@ -18,7 +19,7 @@ public class GetUserDetailsQueryHandler(UserManager<ApplicationUser> userManager
         var hasPassword = await userManager.HasPasswordAsync(user);
         var logins = await userManager.GetLoginsAsync(user);
 
-        var details = new AdminUserDetailsDto
+        var details = new AdminUserDetailsResponse
         {
             UserId = user.Id.ToString(),
             UserName = user.UserName ?? string.Empty,

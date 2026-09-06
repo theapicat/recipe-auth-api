@@ -10,9 +10,8 @@ public static class DatabaseExtensions
         var connectionString = configuration.GetConnectionString("DefaultConnection");
 
         if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException("Tilkoblingsstrengen 'DefaultConnection' mangler eller er tom i konfigurasjonen.");
-        }
+            throw new InvalidOperationException(
+                "Tilkoblingsstrengen 'DefaultConnection' mangler eller er tom i konfigurasjonen.");
 
         services.AddDbContext<ApplicationDbContext>(options =>
         {

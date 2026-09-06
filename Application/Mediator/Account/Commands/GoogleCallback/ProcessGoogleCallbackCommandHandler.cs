@@ -18,30 +18,24 @@ public class ProcessGoogleCallbackCommandHandler(
     ApplicationDbContext dbContext,
     IPublishEndpoint publishEndpoint,
     IOptions<AppSettings> appSettings,
-    ITokenService tokenService) 
+    ITokenService tokenService)
     : IRequestHandler<ProcessGoogleCallbackCommand, ProcessGoogleCallbackResult>
 {
-    public async Task<ProcessGoogleCallbackResult> Handle(ProcessGoogleCallbackCommand request, CancellationToken cancellationToken)
+    public async Task<ProcessGoogleCallbackResult> Handle(ProcessGoogleCallbackCommand request,
+        CancellationToken cancellationToken)
     {
         var frontendUrl = appSettings.Value.FrontendUrl.TrimEnd('/');
 
         if (!string.IsNullOrWhiteSpace(request.RemoteError))
-        {
-            return new ProcessGoogleCallbackResult(false, RedirectUrl: $"{frontendUrl}/login?error=access_denied");
-        }
+            return new ProcessGoogleCallbackResult(false, $"{frontendUrl}/login?error=access_denied");
 
         var info = request.ExternalLoginInfo;
-        if (info is null)
-        {
-            return new ProcessGoogleCallbackResult(false, RedirectUrl: $"{frontendUrl}/login?error=google_failed");
-        }
+        if (info is null) return new ProcessGoogleCallbackResult(false, $"{frontendUrl}/login?error=google_failed");
 
         // Hent e-post fra Google Principal
         var email = info.Principal.FindFirstValue(ClaimTypes.Email);
         if (string.IsNullOrWhiteSpace(email))
-        {
-            return new ProcessGoogleCallbackResult(false, RedirectUrl: $"{frontendUrl}/login?error=google_failed");
-        }
+            return new ProcessGoogleCallbackResult(false, $"{frontendUrl}/login?error=google_failed");
 
         var normalizedEmail = email.Trim().ToLowerInvariant();
         var emailDomain = normalizedEmail.Split('@').LastOrDefault();
@@ -49,15 +43,12 @@ public class ProcessGoogleCallbackCommandHandler(
         // 1. SVARTELISTESJEKK (Sjekk om e-post eller domene er svartelistet)
         var isBlacklisted = await dbContext.BlacklistedEntries
             .AsNoTracking()
-            .AnyAsync(b => 
-                (b.Type == BlacklistType.ExactEmail && b.Pattern.ToLower() == normalizedEmail) ||
-                (b.Type == BlacklistType.Domain && b.Pattern.ToLower() == emailDomain), 
+            .AnyAsync(b =>
+                    (b.Type == BlacklistType.ExactEmail && b.Pattern.ToLower() == normalizedEmail) ||
+                    (b.Type == BlacklistType.Domain && b.Pattern.ToLower() == emailDomain),
                 cancellationToken);
 
-        if (isBlacklisted)
-        {
-            return new ProcessGoogleCallbackResult(false, RedirectUrl: $"{frontendUrl}/login?error=blacklisted");
-        }
+        if (isBlacklisted) return new ProcessGoogleCallbackResult(false, $"{frontendUrl}/login?error=blacklisted");
 
         // 2. Finn eksisterende bruker (enten via Google LoginInfo eller e-post)
         var user = await userManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey)
@@ -67,16 +58,12 @@ public class ProcessGoogleCallbackCommandHandler(
         {
             // Sjekk om den eksisterende brukeren er sperret eller utestengt
             if (await userManager.IsLockedOutAsync(user) || !await signInManager.CanSignInAsync(user))
-            {
-                return new ProcessGoogleCallbackResult(false, RedirectUrl: $"{frontendUrl}/login?error=account_locked");
-            }
+                return new ProcessGoogleCallbackResult(false, $"{frontendUrl}/login?error=account_locked");
 
             // Knytt Google-innlogging til brukeren dersom den ikke er knyttet fra før
             var logins = await userManager.GetLoginsAsync(user);
             if (!logins.Any(l => l.LoginProvider == info.LoginProvider && l.ProviderKey == info.ProviderKey))
-            {
                 await userManager.AddLoginAsync(user, info);
-            }
         }
         else
         {
@@ -98,9 +85,7 @@ public class ProcessGoogleCallbackCommandHandler(
 
             var createResult = await userManager.CreateAsync(user);
             if (!createResult.Succeeded)
-            {
-                return new ProcessGoogleCallbackResult(false, RedirectUrl: $"{frontendUrl}/login?error=google_failed");
-            }
+                return new ProcessGoogleCallbackResult(false, $"{frontendUrl}/login?error=google_failed");
 
             await userManager.AddLoginAsync(user, info);
             await userManager.AddToRoleAsync(user, "user");
@@ -116,9 +101,7 @@ public class ProcessGoogleCallbackCommandHandler(
 
         // Dobbeltsjekk sperre før token-generering
         if (await userManager.IsLockedOutAsync(user) || !await signInManager.CanSignInAsync(user))
-        {
-            return new ProcessGoogleCallbackResult(false, RedirectUrl: $"{frontendUrl}/login?error=account_locked");
-        }
+            return new ProcessGoogleCallbackResult(false, $"{frontendUrl}/login?error=account_locked");
 
         // Oppdater LastLoginAt
         user.LastLoginAt = DateTime.UtcNow;
@@ -133,16 +116,16 @@ public class ProcessGoogleCallbackCommandHandler(
 
         // Bygg callback-URL med gyldig JWT token
         var callbackUrl = $"{frontendUrl}/api/auth/google-callback" +
-            $"?access_token={Uri.EscapeDataString(accessToken)}" +
-            $"&refresh_token={refreshToken}" +
-            $"&user_id={user.Id}" +
-            $"&email={Uri.EscapeDataString(user.Email!)}" +
-            $"&first_name={Uri.EscapeDataString(user.FirstName)}" +
-            $"&last_name={Uri.EscapeDataString(user.LastName)}" +
-            $"&role={Uri.EscapeDataString(roles.FirstOrDefault() ?? "user")}" +
-            $"&has_password={hasPassword.ToString().ToLower()}" +
-            $"&welcome_completed={user.WelcomeCompleted.ToString().ToLower()}";
+                          $"?access_token={Uri.EscapeDataString(accessToken)}" +
+                          $"&refresh_token={refreshToken}" +
+                          $"&user_id={user.Id}" +
+                          $"&email={Uri.EscapeDataString(user.Email!)}" +
+                          $"&first_name={Uri.EscapeDataString(user.FirstName)}" +
+                          $"&last_name={Uri.EscapeDataString(user.LastName)}" +
+                          $"&role={Uri.EscapeDataString(roles.FirstOrDefault() ?? "user")}" +
+                          $"&has_password={hasPassword.ToString().ToLower()}" +
+                          $"&welcome_completed={user.WelcomeCompleted.ToString().ToLower()}";
 
-        return new ProcessGoogleCallbackResult(true, RedirectUrl: callbackUrl);
+        return new ProcessGoogleCallbackResult(true, callbackUrl);
     }
 }

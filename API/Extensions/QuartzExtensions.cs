@@ -16,7 +16,7 @@ public static class QuartzExtensions
         var options = section.Get<AccountLifecycleOptions>() ?? new AccountLifecycleOptions();
 
         // 3. Fallback/Validering hvis Cron-streng mangler (forhindrer krasj)
-        var cronSchedule = string.IsNullOrWhiteSpace(options.CronSchedule) 
+        var cronSchedule = string.IsNullOrWhiteSpace(options.CronSchedule)
             ? "0 0 0 * * ?" // Standard: Hver natt kl 00:00
             : options.CronSchedule;
 

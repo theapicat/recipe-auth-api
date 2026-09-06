@@ -12,7 +12,7 @@ public class SendUserEmailAdminCommandHandler(
     : IRequestHandler<SendUserEmailAdminCommand, SendUserEmailAdminResult>
 {
     public async Task<SendUserEmailAdminResult> Handle(
-        SendUserEmailAdminCommand request, 
+        SendUserEmailAdminCommand request,
         CancellationToken cancellationToken)
     {
         if (!Guid.TryParse(request.UserId, out var targetGuid))
@@ -25,7 +25,7 @@ public class SendUserEmailAdminCommandHandler(
             return SendUserEmailAdminResult.BadRequest("Melding kan ikke være tom.");
 
         var user = await userManager.FindByIdAsync(request.UserId);
-        if (user == null) 
+        if (user == null)
             return SendUserEmailAdminResult.NotFound();
 
         var fullName = $"{user.FirstName} {user.LastName}".Trim();

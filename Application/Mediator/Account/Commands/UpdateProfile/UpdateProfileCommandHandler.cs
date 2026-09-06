@@ -1,4 +1,5 @@
 using Domain.DTOs.Account;
+using Domain.DTOs.Account.Responses;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Persistence.Context;
@@ -16,7 +17,8 @@ public class UpdateProfileCommandHandler(UserManager<ApplicationUser> userManage
 
         // Beskyttelse mot endring av systemadministrator
         if (await userManager.IsInRoleAsync(user, "Admin"))
-            return UpdateProfileResult.Forbidden("Profilinformasjonen til systemadministrator er låst og kan ikke endres.");
+            return UpdateProfileResult.Forbidden(
+                "Profilinformasjonen til systemadministrator er låst og kan ikke endres.");
 
         user.FirstName = request.FirstName;
         user.LastName = request.LastName;

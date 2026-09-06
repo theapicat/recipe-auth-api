@@ -22,18 +22,13 @@ public static class IdentitySeeder
         // 1. Opprett roller
         string[] roles = ["Admin", "User"];
         foreach (var roleName in roles)
-        {
             if (!await roleManager.RoleExistsAsync(roleName))
-            {
                 await roleManager.CreateAsync(new IdentityRole<Guid>(roleName));
-            }
-        }
 
         // 2. Opprett Admin-bruker
         if (string.IsNullOrWhiteSpace(adminOptions.Email) || string.IsNullOrWhiteSpace(adminOptions.Password))
-        {
-            throw new InvalidOperationException("Konfigurasjon for 'AdminUser' (Email/Password) mangler i appsettings.");
-        }
+            throw new InvalidOperationException(
+                "Konfigurasjon for 'AdminUser' (Email/Password) mangler i appsettings.");
 
         var adminEmail = adminOptions.Email;
         var adminPassword = adminOptions.Password;
@@ -66,10 +61,7 @@ public static class IdentitySeeder
         }
 
         // 3. Testbrukere for Dev-modus fra JSON-fil
-        if (env.IsDevelopment())
-        {
-            await SeedDevUsersFromJsonAsync(userManager, env);
-        }
+        if (env.IsDevelopment()) await SeedDevUsersFromJsonAsync(userManager, env);
     }
 
     private static async Task SeedDevUsersFromJsonAsync(UserManager<ApplicationUser> userManager, IHostEnvironment env)
@@ -127,11 +119,9 @@ public static class IdentitySeeder
             if (daysInactive >= 365)
                 inactivity1ySentAt = checkInactivityDate.AddDays(365);
 
-            LockoutReason lockoutReasonEnum = LockoutReason.None;
+            var lockoutReasonEnum = LockoutReason.None;
             if (!string.IsNullOrWhiteSpace(seedUser.LockoutReason))
-            {
                 Enum.TryParse(seedUser.LockoutReason, out lockoutReasonEnum);
-            }
 
             var user = new ApplicationUser
             {
@@ -161,37 +151,33 @@ public static class IdentitySeeder
                 if (result.Succeeded)
                 {
                     await userManager.AddToRoleAsync(user, "User");
-                    await userManager.AddLoginAsync(user, new UserLoginInfo("Google", $"google-dev-key-{user.Email}", "Google"));
+                    await userManager.AddLoginAsync(user,
+                        new UserLoginInfo("Google", $"google-dev-key-{user.Email}", "Google"));
                 }
             }
             else
             {
                 var password = string.IsNullOrWhiteSpace(seedUser.Password) ? "DevUser123!" : seedUser.Password;
                 result = await userManager.CreateAsync(user, password);
-                if (result.Succeeded)
-                {
-                    await userManager.AddToRoleAsync(user, "User");
-                }
+                if (result.Succeeded) await userManager.AddToRoleAsync(user, "User");
             }
 
             // Håndter låsing dersom kilden sier at den er låst
             if (result.Succeeded && seedUser.IsLocked)
-            {
                 await userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
-            }
         }
     }
 
     private class SeedUserDto
     {
-        public string Email { get; set; } = string.Empty;
-        public string FirstName { get; set; } = string.Empty;
-        public string LastName { get; set; } = string.Empty;
-        public bool EmailConfirmed { get; set; } = true;
-        public bool WelcomeCompleted { get; set; } = true;
+        public string Email { get; } = string.Empty;
+        public string FirstName { get; } = string.Empty;
+        public string LastName { get; } = string.Empty;
+        public bool EmailConfirmed { get; } = true;
+        public bool WelcomeCompleted { get; } = true;
         public string? Password { get; set; }
-        public bool IsGoogleAccount { get; set; } = false;
-        public bool IsLocked { get; set; } = false;
+        public bool IsGoogleAccount { get; } = false;
+        public bool IsLocked { get; } = false;
         public string? LockoutReason { get; set; }
         public string? LockoutReasonDetails { get; set; }
         public int? CreatedAtDaysAgo { get; set; }
