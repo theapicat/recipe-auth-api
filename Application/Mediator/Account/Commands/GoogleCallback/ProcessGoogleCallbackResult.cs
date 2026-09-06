@@ -1,4 +1,4 @@
-namespace Application.Mediator.Auth.GoogleCallback;
+namespace Application.Mediator.Account.Commands.GoogleCallback;
 
 public record ProcessGoogleCallbackResult(
     bool IsSuccess, 

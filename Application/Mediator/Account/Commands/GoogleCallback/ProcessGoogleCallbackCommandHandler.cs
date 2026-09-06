@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Persistence.Context;
 
-namespace Application.Mediator.Auth.GoogleCallback;
+namespace Application.Mediator.Account.Commands.GoogleCallback;
 
 public class ProcessGoogleCallbackCommandHandler(
     UserManager<ApplicationUser> userManager,

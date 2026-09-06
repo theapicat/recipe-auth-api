@@ -1,22 +1,17 @@
-using System.Security.Claims;
-using Application.TokenService.Interfaces;
+using Application.Mediator.Authorization.Commands.PasswordGrant;
+using Application.Mediator.Authorization.Commands.RefreshTokenGrant;
+using MediatR;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using OpenIddict.Abstractions;
 using OpenIddict.Server.AspNetCore;
-using Persistence.Context;
 
 namespace API.Controllers;
 
 [ApiController]
 [Route("api/auth/connect")]
-public class AuthorizationController(
-    UserManager<ApplicationUser> userManager,
-    SignInManager<ApplicationUser> signInManager,
-    ITokenService tokenService)
-    : ControllerBase
+public class AuthorizationController(IMediator mediator) : ControllerBase
 {
     // --- TOKEN ENDEPUNKT ---
     // URL: POST /api/auth/connect/token
@@ -33,32 +28,15 @@ public class AuthorizationController(
         // ----------------------------------------------------
         if (request.IsPasswordGrantType())
         {
-            var user = await userManager.FindByEmailAsync(request.Username!) 
-                ?? await userManager.FindByNameAsync(request.Username!);
+            var command = new PasswordGrantCommand(request.Username ?? string.Empty, request.Password ?? string.Empty);
+            var result = await mediator.Send(command);
 
-            if (user is null)
+            if (!result.IsSuccess)
             {
-                return ChallengeWithError("Ugyldig e-post eller passord.");
+                return ChallengeWithError(result.ErrorDescription!);
             }
 
-            // Sjekk om kontoen er sperret eller ikke kan logge inn
-            if (await userManager.IsLockedOutAsync(user) || !await signInManager.CanSignInAsync(user))
-            {
-                return ChallengeWithError("Kontoen din er sperret eller deaktivert.");
-            }
-
-            var result = await signInManager.CheckPasswordSignInAsync(user, request.Password!, lockoutOnFailure: true);
-            if (!result.Succeeded)
-            {
-                return ChallengeWithError("Ugyldig e-post eller passord.");
-            }
-
-            // Oppdater LastLoginAt ved vellykket innlogging
-            user.LastLoginAt = DateTime.UtcNow;
-            await userManager.UpdateAsync(user);
-
-            var principal = await tokenService.CreateClaimsPrincipalAsync(user);
-            return SignIn(principal, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+            return SignIn(result.Principal!, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
         }
 
         // ----------------------------------------------------
@@ -66,33 +44,16 @@ public class AuthorizationController(
         // ----------------------------------------------------
         if (request.IsRefreshTokenGrantType())
         {
-            var result = await HttpContext.AuthenticateAsync(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
-            if (!result.Succeeded || result.Principal is null)
+            var authResult = await HttpContext.AuthenticateAsync(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+            var command = new RefreshTokenGrantCommand(authResult.Principal);
+            var result = await mediator.Send(command);
+
+            if (!result.IsSuccess)
             {
-                return ChallengeWithError("Ugyldig eller utløpt refresh token.");
+                return ChallengeWithError(result.ErrorDescription!);
             }
 
-            // Hent bruker-ID fra eksisterende token-claims
-            var userId = result.Principal.GetClaim(OpenIddictConstants.Claims.Subject);
-            if (string.IsNullOrEmpty(userId))
-            {
-                return ChallengeWithError("Ugyldig token-identitetsdata.");
-            }
-
-            var user = await userManager.FindByIdAsync(userId);
-            if (user is null || await userManager.IsLockedOutAsync(user) || !await signInManager.CanSignInAsync(user))
-            {
-                return ChallengeWithError("Kontoen er sperret eller eksisterer ikke lenger.");
-            }
-
-            // Oppdater LastLoginAt ved hver vellykkede token-fornyelse
-            user.LastLoginAt = DateTime.UtcNow;
-            await userManager.UpdateAsync(user);
-
-            // Re-opprett ClaimsPrincipal for å sikre at nye navn, roller eller felter blir inkludert
-            var freshPrincipal = await tokenService.CreateClaimsPrincipalAsync(user);
-
-            return SignIn(freshPrincipal, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+            return SignIn(result.Principal!, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
         }
 
         return BadRequest(new { Error = "Ugyldig grant_type angitt." });

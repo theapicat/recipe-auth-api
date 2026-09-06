@@ -1,5 +1,5 @@
 using Contracts.Events.UserActions;
-using Domain.DTOs;
+using Domain.DTOs.Account;
 using Domain.Options;
 using MassTransit;
 using MediatR;
@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Persistence.Context;
 
-namespace Application.Mediator.Auth.Register;
+namespace Application.Mediator.Account.Commands.Register;
 
 public class RegisterUserCommandHandler(
     UserManager<ApplicationUser> userManager,
@@ -16,13 +16,10 @@ public class RegisterUserCommandHandler(
 {
     public async Task<RegisterUserResult> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
     {
-
         // 1. Sjekk om e-post finnes fra før
         var existingUser = await userManager.FindByEmailAsync(request.Email);
         if (existingUser != null)
-        {
-            return new RegisterUserResult(false, ErrorMessage: "E-postadressen er allerede i bruk.");
-        }
+            return RegisterUserResult.Failure("E-postadressen er allerede i bruk.");
 
         // 2. Opprett ny bruker
         var user = new ApplicationUser
@@ -38,23 +35,24 @@ public class RegisterUserCommandHandler(
 
         var result = await userManager.CreateAsync(user, request.Password);
         if (!result.Succeeded)
-        {
-            return new RegisterUserResult(false, Errors: result.Errors);
-        }
+            return RegisterUserResult.Failure(result.Errors);
 
         await userManager.AddToRoleAsync(user, "user");
 
-        // 3. Generer bekreftelses-token og bygg bekreftelseslenke fra sterk typet konfigurasjon
+        // 3. Generer bekreftelses-token og bygg bekreftelseslenke
         var confirmationToken = await userManager.GenerateEmailConfirmationTokenAsync(user);
         
-        var baseUrl = appSettings.Value.FrontendUrl;
+        var baseUrl = appSettings.Value.FrontendUrl.TrimEnd('/');
         var confirmationLink = $"{baseUrl}/confirm-email?userId={user.Id}&token={Uri.EscapeDataString(confirmationToken)}";
 
-        // 4. Publiser hendelsen til RabbitMQ (Sendes til recipe-notification-service)
+        // 4. Navne-fallback og publisering til RabbitMQ
+        var fullName = $"{user.FirstName} {user.LastName}".Trim();
+        var displayName = string.IsNullOrWhiteSpace(fullName) ? user.Email : fullName;
+
         await publishEndpoint.Publish(new UserRegisteredEvent
         {
             UserId = user.Id,
-            Name = $"{user.FirstName} {user.LastName}".Trim(),
+            Name = displayName,
             Email = user.Email,
             ConfirmationLink = confirmationLink,
             RegisteredAt = user.CreatedAt
@@ -80,6 +78,6 @@ public class RegisterUserCommandHandler(
             LastLoginAt = user.LastLoginAt
         };
 
-        return new RegisterUserResult(true, UserProfile: userProfile);
+        return RegisterUserResult.Success(userProfile);
     }
 }
