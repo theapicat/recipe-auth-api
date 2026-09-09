@@ -6,7 +6,6 @@ public class JwtOptions
 
     public string SecretKey { get; set; } = string.Empty;
 
-    // Støtter også "Key" hvis det står det i appsettings.json
     public string Key
     {
         get => SecretKey;
@@ -15,4 +14,8 @@ public class JwtOptions
 
     public string Issuer { get; set; } = string.Empty;
     public string Audience { get; set; } = string.Empty;
+
+    // 💡 Nye felter for konfigurerbar levetid:
+    public int AccessTokenLifetimeInMinutes { get; set; } = 60; // Standard: 60 minutter
+    public int RefreshTokenLifetimeInDays { get; set; } = 14;  // Standard: 14 dager
 }

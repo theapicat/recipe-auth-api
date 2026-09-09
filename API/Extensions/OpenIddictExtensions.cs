@@ -8,21 +8,22 @@ namespace API.Extensions;
 
 public static class OpenIddictExtensions
 {
-    public static IServiceCollection AddCustomIdentityAndOpenIddict(this IServiceCollection services,
+    public static IServiceCollection AddCustomIdentityAndOpenIddict(
+        this IServiceCollection services,
         IConfiguration configuration)
     {
-        // 1. Registrer og hent JwtOptions fra appsettings.json
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
 
-        var jwtOptions = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>();
+        var jwtOptions = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() 
+                         ?? new JwtOptions();
 
-        if (string.IsNullOrWhiteSpace(jwtOptions?.SecretKey))
+        if (string.IsNullOrWhiteSpace(jwtOptions.SecretKey))
             throw new InvalidOperationException(
                 "Konfigurasjon for 'JWT:SecretKey' mangler eller er tom i appsettings.");
 
         var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey));
 
-        // 2. ASP.NET Core Identity
+        // 1. ASP.NET Core Identity
         services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
             {
                 options.Password.RequireDigit = true;
@@ -34,7 +35,7 @@ public static class OpenIddictExtensions
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
 
-        // 3. OpenIddict Core & Server
+        // 2. OpenIddict Core & Server
         services.AddOpenIddict()
             .AddCore(options =>
             {
@@ -44,24 +45,21 @@ public static class OpenIddictExtensions
             })
             .AddServer(options =>
             {
-                // OAuth2 / OIDC Endepunkter
                 options.SetTokenEndpointUris("/api/auth/connect/token");
 
-                // Flows som støttes
                 options.AllowPasswordFlow()
                     .AllowRefreshTokenFlow();
 
-                // Symmetrisk nøkkel for deling med Gateway og TokenService
-                options.AddSigningKey(signingKey);
+                // 💡 TVING OPENIDDICT TIL Å BRUKE DE KONFIGURERTE LEVETIDENE:
+                options.SetAccessTokenLifetime(TimeSpan.FromMinutes(jwtOptions.AccessTokenLifetimeInMinutes));
+                options.SetRefreshTokenLifetime(TimeSpan.FromDays(jwtOptions.RefreshTokenLifetimeInDays));
 
-                // Tving ukrypterte JWT-er slik at TokenService sine tokens kan leses
+                options.AddSigningKey(signingKey);
                 options.DisableAccessTokenEncryption();
 
-                // Utviklingssertifikater
                 options.AddDevelopmentEncryptionCertificate()
                     .AddDevelopmentSigningCertificate();
 
-                // ASP.NET Core MVC-passthrough
                 options.UseAspNetCore()
                     .EnableTokenEndpointPassthrough()
                     .DisableTransportSecurityRequirement();
@@ -71,14 +69,13 @@ public static class OpenIddictExtensions
                 options.UseLocalServer();
                 options.UseAspNetCore();
 
-                // Konfigurer valideringen til å godta "recipe-auth-app" fra appsettings.json
                 options.Configure(valOptions =>
                 {
                     valOptions.TokenValidationParameters.ValidateIssuer = true;
-                    valOptions.TokenValidationParameters.ValidIssuer = jwtOptions.Issuer; // "recipe-auth-app"
+                    valOptions.TokenValidationParameters.ValidIssuer = jwtOptions.Issuer;
                     valOptions.TokenValidationParameters.ValidateAudience =
                         !string.IsNullOrWhiteSpace(jwtOptions.Audience);
-                    valOptions.TokenValidationParameters.ValidAudience = jwtOptions.Audience; // "recipe-frontend"
+                    valOptions.TokenValidationParameters.ValidAudience = jwtOptions.Audience;
                     valOptions.TokenValidationParameters.ValidateIssuerSigningKey = true;
                     valOptions.TokenValidationParameters.IssuerSigningKey = signingKey;
                     valOptions.TokenValidationParameters.ValidateLifetime = true;

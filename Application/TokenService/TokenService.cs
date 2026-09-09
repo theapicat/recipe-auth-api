@@ -67,20 +67,17 @@ public class TokenService(
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = (ClaimsIdentity)principal.Identity!,
-            Expires = DateTime.UtcNow.AddHours(1),
+        
+            // 💡 Bruker konfigurert levetid fra JwtOptions
+            Expires = DateTime.UtcNow.AddMinutes(_jwt.AccessTokenLifetimeInMinutes),
             Issuer = issuer,
             Audience = _jwt.Audience,
             SigningCredentials = credentials,
-
-            // 💡 1. TVING RIKTIG TYPE INN I JWT-HEADEREN (Løser ID2089)
-            // OpenIddict Validation forventer typen "at+jwt" for et Access Token
             TokenType = "at+jwt",
 
-            // 💡 2. TVING INN OPENIDDICT SINE INTERNE CLAIMS
             Claims = new Dictionary<string, object>
             {
                 { OpenIddictConstants.Claims.Issuer, issuer },
-                // Denne sikrer at den også ligger i selve payloaden
                 { OpenIddictConstants.Claims.TokenType, OpenIddictConstants.TokenTypeHints.AccessToken }
             }
         };
