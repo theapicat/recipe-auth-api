@@ -1,3 +1,4 @@
+using API.Consumers;
 using Domain.Options;
 using MassTransit;
 using Microsoft.Extensions.Options;
@@ -15,6 +16,9 @@ public static class MassTransitExtensions
 
         services.AddMassTransit(x =>
         {
+            x.AddConsumer<InvalidEmailDetectedConsumer>();
+            
+            
             x.UsingRabbitMq((context, cfg) =>
             {
                 // Henter sterk type fra DI
