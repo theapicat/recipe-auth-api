@@ -8,6 +8,7 @@ using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using OpenIddict.Abstractions;
 using Persistence.Context;
 
 namespace Application.Mediator.Account.Commands.GoogleCallback;
@@ -18,7 +19,9 @@ public class ProcessGoogleCallbackCommandHandler(
     ApplicationDbContext dbContext,
     IPublishEndpoint publishEndpoint,
     IOptions<AppSettings> appSettings,
-    ITokenService tokenService)
+    IOptions<JwtOptions> jwtOptions,
+    ITokenService tokenService,
+    IOpenIddictTokenManager tokenManager)
     : IRequestHandler<ProcessGoogleCallbackCommand, ProcessGoogleCallbackResult>
 {
     public async Task<ProcessGoogleCallbackResult> Handle(ProcessGoogleCallbackCommand request,
@@ -110,14 +113,31 @@ public class ProcessGoogleCallbackCommandHandler(
         var roles = await userManager.GetRolesAsync(user);
         var hasPassword = await userManager.HasPasswordAsync(user);
 
-        // Generer JWT token
+        // Generer JWT Access Token
         var accessToken = await tokenService.GenerateAccessTokenAsync(user);
-        var refreshToken = Guid.NewGuid().ToString("N");
 
-        // Bygg callback-URL med gyldig JWT token
+        // Generer et registrert OpenIddict Refresh Token i databasen
+        var refreshTokenValue = Guid.NewGuid().ToString("N");
+        var refreshLifetimeDays = jwtOptions.Value.RefreshTokenLifetimeInDays > 0 
+            ? jwtOptions.Value.RefreshTokenLifetimeInDays 
+            : 14;
+
+        var tokenDescriptor = new OpenIddictTokenDescriptor
+        {
+            Subject = user.Id.ToString(),
+            Type = OpenIddictConstants.TokenTypeHints.RefreshToken,
+            Status = OpenIddictConstants.Statuses.Valid,
+            CreationDate = DateTimeOffset.UtcNow,
+            ExpirationDate = DateTimeOffset.UtcNow.AddDays(refreshLifetimeDays),
+            Payload = refreshTokenValue
+        };
+
+        await tokenManager.CreateAsync(tokenDescriptor, cancellationToken);
+
+        // Bygg callback-URL med gyldig JWT token og escaper parametere
         var callbackUrl = $"{frontendUrl}/api/auth/google-callback" +
                           $"?access_token={Uri.EscapeDataString(accessToken)}" +
-                          $"&refresh_token={refreshToken}" +
+                          $"&refresh_token={Uri.EscapeDataString(refreshTokenValue)}" +
                           $"&user_id={user.Id}" +
                           $"&email={Uri.EscapeDataString(user.Email!)}" +
                           $"&first_name={Uri.EscapeDataString(user.FirstName)}" +
