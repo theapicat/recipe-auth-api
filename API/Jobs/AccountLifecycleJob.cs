@@ -179,6 +179,14 @@ public class AccountLifecycleJob(
             user.InactivityWarning6MonthsSentAt = now;
             user.LastModifiedAt = now;
             await userManager.UpdateAsync(user);
+
+            await publishEndpoint.Publish(new Inactivity6MonthsWarningEvent
+            {
+                UserId = user.Id,
+                Email = user.Email!,
+                Name = GetFullName(user),
+                WarnedAt = now
+            });
         }
     }
 
@@ -204,11 +212,19 @@ public class AccountLifecycleJob(
             user.LockoutEnabled = true;
             user.LockoutEnd = DateTimeOffset.MaxValue;
             user.LockoutReason = LockoutReason.Inactivity1Year;
-            user.LockoutReasonDetails = "Konto sperret pga. inaktivitet i over 1 år uden innlogging.";
+            user.LockoutReasonDetails = "Konto sperret pga. inaktivitet i over 1 år uten innlogging.";
             user.Inactivity1YearLockedSentAt = now;
             user.LastModifiedAt = now;
 
             await userManager.UpdateAsync(user);
+
+            await publishEndpoint.Publish(new Inactivity1YearLockedEvent
+            {
+                UserId = user.Id,
+                Email = user.Email!,
+                Name = GetFullName(user),
+                LockedAt = now
+            });
         }
     }
 
