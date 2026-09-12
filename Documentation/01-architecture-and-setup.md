@@ -1,151 +1,161 @@
-# Arkitektur og Oppsett for `recipe-auth-api`
+# recipe-auth-api
+
+Autentiserings- og identitetstjeneste for Kjøkkenhylla-plattformen[cite: 2]. Tjenesten er bygget på **.NET 10** med **Clean Architecture**, **CQRS (MediatR)**, **OpenIddict** (OAuth2/OIDC), **ASP.NET Core Identity**, **MassTransit** (RabbitMQ) og **Quartz.NET**[cite: 2].
 
 ---
 
-## 1. Systemarkitektur og Lagdeling
+## 🏗️ Arkitektur og Lagdeling
 
-`recipe-auth-api` er bygget opp etter prinsippene for **Clean Architecture** for å sikre streng ansvarsfordeling, testbarhet og uavhengighet av eksterne rammeverk.
+Applikasjonen følger prinsippene for Clean Architecture for å sikre klar ansvarsfordeling og høy testbarhet[cite: 1]:
 
-```text
-               ┌─────────────────────────────────────────────────────────┐
-               │                        API                              │
-               │   (Controllers, Consumers, Jobs, Extensions, Program)   │
-               └───────────────────────────┬─────────────────────────────┘
-                                           │
-                                           ▼
-               ┌─────────────────────────────────────────────────────────┐
-               │                    Application                          │
-               │       (MediatR CQRS, TokenService, Handlers)            │
-               └──────────────┬───────────────────────────┬──────────────┘
-                              │                           │
-                              ▼                           ▼
-┌─────────────────────────────────────────┐   ┌─────────────────────────────────────────┐
-│               Persistence               │   │                Contracts                │
-│ (EF Core, OpenIddict Store, Identity)   │   │     (Asynkrone Event-kontrakter)        │
-└─────────────────────────────┬───────────┘   └─────────────────────────────────────────┘
-                              │
-                              ▼
-┌───────────────────────────────────────────────────────────────────────────────────────┐
-│                                         Domain                                        │
-│               (Entities, DTOs, Enums, Options, Systemgrensesnitt)                     │
-└───────────────────────────────────────────────────────────────────────────────────────┘
-
-```
-
-### Ansvarsfordeling per prosjekt
-
-* **`API`:** Innfallsvinkelen for applikasjonen. Inneholder HTTP-kontrollere, MassTransit event-consumers (`InvalidEmailDetectedConsumer`), Quartz-bakgrunnsjobber (`AccountLifecycleJob`) og utvidelser for DI-registrering.
-* **`Application`:** Kjernen i forretningslogikken. Inneholder alle CQRS Commands, Queries og Handlers, samt `TokenService` for sammensetting av `ClaimsPrincipal` og JWT-utstedelse.
-* **`Domain`:** Inneholder kjernemodeller, entiteter (`ApplicationUser`, `BlacklistedEntry`), enumer, DTO-er og konfigurasjonsklasser (`Options`). Har ingen avhengigheter til andre prosjekter.
-* **`Contracts`:** Inneholder rene datakontrakter for eventer som publiseres over meldingsbussen (oppdelt i `UserActions`, `AdminActions` og `SystemActions`).
-* **`Persistence`:** Håndterer databasemodellering mot PostgreSQL via Entity Framework Core, ASP.NET Core Identity og lagringsadaptere for OpenIddict.
+* **API:** HTTP-kontrollere, MassTransit event-consumers, Quartz-bakgrunnsjobber og DI-konfigurasjon[cite: 1].
+* **Application:** CQRS Commands, Queries, Handlers og TokenService[cite: 1].
+* **Domain:** Entiteter, DTO-er, enumer og konfigurasjonsklasser (Options)[cite: 1].
+* **Contracts:** Rene hendelseskontrakter for asynkron meldingsutveksling over bussen[cite: 1].
+* **Persistence:** EF Core datakontekst mot PostgreSQL, ASP.NET Core Identity og OpenIddict-lagring[cite: 1].
 
 ---
 
-## 2. Teknologistakk
+## 🚀 Hurtigstart for Lokalutvikling
 
-* **Kjøremiljø:** .NET 10 (C#)
-* **Databaselag:** Entity Framework Core med PostgreSQL
-* **Identitet & Sikkerhet:** ASP.NET Core Identity & OpenIddict (OAuth2 / OpenID Connect)
-* **Meldingsbuss:** MassTransit over RabbitMQ
-* **Bakgrunnsjobber:** Quartz.NET
-* **Logging:** Serilog (Konsoll & Seq på `http://localhost:5341`)
-
----
-
-## 3. Konfigurasjonsstruktur (`Options`-mønsteret)
-
-Tjenesten benytter .NET sitt `IOptions<T>`-mønster for å binde konfigurasjonsseksjoner fra `appsettings.json` til sterkt typede objekter i `Domain/Options`:
-
-* **`AppSettings` (`AppSettings`):** Inneholder `FrontendUrl` for e-postlenker/callbacks, samt client_id-er for OpenIddict-seeding (`recipe-web-app` og `recipe-mobile-app`).
-* **`AdminUserOptions` (`AdminUser`):** Standard identitet (`admin@kjoekkenhylla.local`) og oppstartspassord som benyttes av `IdentitySeeder` for opprettelse av initial administrator.
-* **`JwtOptions` (`JWT`):** Styrer JWT-signeringsnøkkel, utsteder (`recipe-auth-app`), målgruppe (`recipe-frontend`) og konfigurerbare levetider for Access Tokens (60 minutter) og Refresh Tokens (14 dager).
-* **`AccountLifecycleOptions` (`AccountLifecycle`):** Konfigurerer tidsfrister for automatisk opprydding og sperring av inaktive eller ubekreftede kontoer, samt Quartz-kroneskjema (`0 0 3 * * ?`).
-* **`RabbitMqOptions` (`RabbitMQ`):** Tilkoblingsdetaljer (vert, port, virtuell vert, brukernavn og passord) for RabbitMQ.
-
----
-
-## 4. Hemmeligheter og Miljøvariabler (Secrets Management)
-
-For å forhindre at sensitive opplysninger lekker til kildekontroll (GitHub), holdes alle hemmeligheter utenfor kildekoden i produksjon/staging.
-
-### Kritiske hemmeligheter
-
-| Konfigurasjonsnøkkel | Beskrivelse | Miljøvariabel (Linux / Docker) |
-| --- | --- | --- |
-| `JWT:SecretKey` | HMAC-SHA256 signeringsnøkkel for JWTs | `JWT__SecretKey` |
-| `Authentication:Google:ClientId` | Google OAuth2 Client ID | `Authentication__Google__ClientId` |
-| `Authentication:Google:ClientSecret` | Google OAuth2 Client Secret | `Authentication__Google__ClientSecret` |
-| `AdminUser:Password` | Passord for initial administrator | `AdminUser__Password` |
-| `ConnectionStrings:DefaultConnection` | Tilkoblingsstreng til PostgreSQL | `ConnectionStrings__DefaultConnection` |
-| `RabbitMQ:Password` | Passord for RabbitMQ-tilkobling | `RabbitMQ__Password` |
-
-### Konfigurasjon i lokalutvikling (User Secrets)
-
-For lokalutvikling benyttes .NET User Secrets, som lagres i brukerens lokalprofil uavhengig av prosjektmappen:
+### 1. Start Felles Infrastruktur (recipe-infrastructure)
+Lokal infrastruktur (PostgreSQL, RabbitMQ, MongoDB, Seq, Mailpit m.m.) styres sentralt via prosjektet [recipe-infrastructure](https://github.com/theapicat/recipe-infrastructure)[cite: 2].
+Klon og start containerne før du kjører recipe-auth-api[cite: 2]:
 
 ```bash
-cd API
-
-# Sett Google OAuth2 legitimasjon
-dotnet user-secrets set "Authentication:Google:ClientId" "DIN_GOOGLE_CLIENT_ID"
-dotnet user-secrets set "Authentication:Google:ClientSecret" "DIN_GOOGLE_CLIENT_SECRET"
-
-# Sett JWT Secret Key
-dotnet user-secrets set "JWT:SecretKey" "DIN_SUPER_HEMMELIGE_SIGNERINGSNØKKEL"
-
-```
-
-### Konfigurasjon i Docker / Produksjon
-
-I containeriserte miljøer oversettes .NET sine kolon-separerte nøkler (`:`) til dobbelt understrek (`__`):
-
-```bash
-docker run -e Authentication__Google__ClientId="YOUR_CLIENT_ID" \
-           -e Authentication__Google__ClientSecret="YOUR_CLIENT_SECRET" \
-           -e JWT__SecretKey="YOUR_SECRET_KEY" \
-           recipe-auth-api
-
-```
-
----
-
-## 5. Lokal Oppstart og Databasedrift
-
-### 1. Felles Lokal Infrastruktur (`recipe-infrastructure`)
-
-Lokal infrastruktur for hele plattformen (PostgreSQL, RabbitMQ, MongoDb, Seq og Mailpit) styres sentralt via repoet **[`recipe-infrastructure`](https://github.com/theapicat/recipe-infrastructure)**.
-
-Før `recipe-auth-api` startes opp lokalt, må containerne i infrastrukturen være oppe og kjøre:
-
-```bash
-git clone https://github.com/theapicat/recipe-infrastructure.git
+git clone [https://github.com/theapicat/recipe-infrastructure.git](https://github.com/theapicat/recipe-infrastructure.git)
 cd recipe-infrastructure
 docker compose up -d
 
 ```
 
-Dette vil blant annet starte containeren `recipe-auth-db` (PostgreSQL på port 5432), `recipe-message-broker` (RabbitMQ på port 5672/15672) og `recipe-seq` (Seq loggdashboard på port 5341).
+### 2. Sett Opp Hemmeligheter (User Secrets)
 
-### 2. Databasemigrering og Seeding
+Gå til prosjektmappen `API` og konfigurer lokalhemmeligheter via .NET CLI:
 
-Når infrastrukturcontainerne kjører, opprettes og oppdateres datatabellene i `recipe-auth-db` ved å kjøre Entity Framework Core-migreringer:
+```bash
+cd API
+
+# Google OAuth2 Legitimasjon (AppSettings-prefiks)
+dotnet user-secrets set "AppSettings:GoogleClientId" "GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+dotnet user-secrets set "AppSettings:GoogleClientSecret" "DIN_GOOGLE_CLIENT_SECRET"
+
+# JWT Signeringsnøkkel
+dotnet user-secrets set "JWT:SecretKey" "DIN_SUPER_HEMMELIGE_SIGNERINGSNØKKEL"
+
+```
+
+### 3. Oppdater Database og Kjør Seedere
+
+Kjør databasemigreringer mot PostgreSQL-containeren (`recipe-auth-db`):
 
 ```bash
 dotnet ef database update --project Persistence --startup-project API
 
 ```
 
-Under oppstart av `Program.cs` kjøres automatisk to seedere mot databasen:
+* **IdentitySeeder:** Oppretter standard roller (`Admin`, `User`) og en initial admin-konto (`admin@kjoekkenhylla.local`).
 
-1. **`IdentitySeeder`:** Oppretter standard roller (`Admin`, `User`) samt den initiale administratorkontoen (`admin@kjoekkenhylla.local`) dersom denne ikke finnes fra før.
-2. **`OpenIddictSeeder`:** Oppretter og konfigurerer godkjente OAuth2-klienter (`recipe-web-app` og `recipe-mobile-app`) i OpenIddict-tabellene.
 
-### 3. Utviklingssertifikater (HTTPS)
+* **OpenIddictSeeder:** Oppretter godkjente OAuth2-klienter (`recipe-web-app` og `recipe-mobile-app`).
 
-For at lokal kommunikasjon mellom Next.js, API Gateway og `recipe-auth-api` skal fungere sømløst over HTTPS uten SSL-sertifikatfeil, må det lokale .NET-sertifikatet klareres på maskinen:
+
+
+### 4. Tillit til Utviklingssertifikat
 
 ```bash
 dotnet dev-certs https --trust
 
 ```
+
+---
+
+## 🔑 Autentisering og Endepunkter
+
+All innkommende trafikk rutes gjennom API Gateway med prefikset `/api/auth/*`. Kontrollerne er utformet som tynne kontrollere som videresender forespørsler til MediatR.
+
+* **AccountController (`/api/auth/account`):** Registrering, profiladministrasjon, passordbytte, e-postbekreftelse, velkomstveileder og Google OAuth2.
+
+
+* **AdminController (`/api/auth/admin`):** Brukeradministrasjon, sperring/gjenåpning, manuell e-postoverstyring og styring av e-postsvartelisten.
+
+
+* **AuthorizationController (`/api/auth/connect`):** OpenIddict OAuth2/OIDC token-utstedelse (`password` og `refresh_token` grants).
+
+
+* **HealthController (`/api/auth/health`):** Helsetest-endepunkt for status- og tilkoblingssjekk.
+
+
+
+---
+
+## ⚡ Meldingsarkitektur og Bakgrunnsjobber
+
+* **Event-driven messaging (MassTransit / RabbitMQ):** Asynkron kommunikasjon med e-posttjenesten (`recipe-notification-service`) og domenetjenester (`recipe-core-api`).
+
+
+* **InvalidEmailDetectedConsumer:** Reagerer på uleverbare e-poster via `InvalidEmailDetectedConsumer` for automatisk svartelisting, token-inndragning og kontosletting.
+
+
+* **Kaskadesletting:** Publiserer slettehendelser slik at andre mikrotjenester rydder opp relaterte brukerdata.
+
+
+* **Quartz.NET (`AccountLifecycleJob`):** Automatisk nattlig opprydding av ubekreftede kontoer (7d påminnelse, 14d sperring, 30d sletting) og inaktive kontoer (6m varsel, 1y sperring, 1y+30d sletting).
+
+
+
+---
+
+## 🛠️ Teststrategi og Kvalitetssikring
+
+Prosjektets testsuite ligger under `Tests/` og følger en firelags testpyramide:
+
+1. **Enhetstester (MediatR Handlers):** Testes i full isolasjon mot EF Core In-Memory database med NSubstitute-mocker for eksterne avhengigheter.
+
+
+2. **Consumer-tester (MassTransit):** Verifisering av hendelseshåndtering (f.eks. `InvalidEmailDetectedConsumer`) via MassTransit In-Memory Test Harness.
+
+
+3. **Bakgrunnsjobber (Quartz.NET):** Verifisering av livsløpsregler i `AccountLifecycleJob` med tidsmanipulerte kontoer.
+
+
+4. **API- og Integrasjonstester:** End-to-end verifisering av HTTP-pipeline, OpenIddict token-utstedelse og autorisasjon med `WebApplicationFactory`.
+
+
+
+### Testverktøy
+
+* **xUnit:** Hovedrammeverk for testkjøring.
+
+
+* **NSubstitute & Shouldly:** Mocking og ekspressive assertions.
+
+
+* **MassTransit Test Framework & EF Core In-Memory:** In-memory testmiljøer.
+
+
+* **Microsoft.AspNetCore.Mvc.Testing:** `WebApplicationFactory` for integrasjonstester.
+
+
+
+### Kjør tester
+
+```bash
+dotnet test Tests/Tests.csproj
+
+```
+
+---
+
+## 📚 Dokumentasjonsoversikt (`Documentation/`)
+
+Prosjektets dokumentasjon er modulært oppdelt under `Documentation/` for å gi dypere innsikt i alle deler av mikrotjenesten:
+
+| Dokument | Beskrivelse |
+| --- | --- |
+| **[01-architecture-and-setup.md](https://www.google.com/search?q=/Documentation/01-architecture-and-setup.md)** | Dybdeinnsikt i Clean Architecture-lagene, teknologistakk, konfigurasjon (Options), User Secrets og felles infrastruktur.
+| **[02-endpoints-and-controllers.md](https://www.google.com/search?q=/Documentation/02-endpoints-and-controllers.md)** | REST API-spesifikasjon og endepunktsoversikt for AccountController, AdminController, AuthorizationController og HealthController.
+| **[03-cqrs-and-mediatr.md](https://www.google.com/search?q=/Documentation/03-cqrs-and-mediatr.md)** | Arkitektur for Application-laget med oversikt over alle 28 Command/Query-behandlere, tynne kontrollere og resultat-mønsteret.
+| **[04-events-and-messaging.md](https://www.google.com/search?q=/Documentation/04-events-and-messaging.md)** | Event-drevet kommunikasjon via MassTransit/RabbitMQ. Beskriver InvalidEmailDetectedConsumer (hard bounce), utgående hendelser og kaskadesletting.
+| **[05-openiddict-security-and-jobs.md](https://www.google.com/search?q=/Documentation/05-openiddict-security-and-jobs.md)** | OAuth2/OIDC token-utstedelse (Password & Refresh grant), Google OAuth2 callback-flyt, og Quartz.NET AccountLifecycleJob.
+| **[06-test-strategy.md](https://www.google.com/search?q=/Documentation/06-test-strategy.md)** | Testpyramide og strategi for testprosjektet. Omfatter enhetstesting av MediatR-handlers, event-testing, jobber og integrasjonstester.
