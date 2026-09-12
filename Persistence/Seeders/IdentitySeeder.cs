@@ -22,13 +22,17 @@ public static class IdentitySeeder
         // 1. Opprett roller
         string[] roles = ["Admin", "User"];
         foreach (var roleName in roles)
+        {
             if (!await roleManager.RoleExistsAsync(roleName))
                 await roleManager.CreateAsync(new IdentityRole<Guid>(roleName));
+        }
 
         // 2. Opprett Admin-bruker
         if (string.IsNullOrWhiteSpace(adminOptions.Email) || string.IsNullOrWhiteSpace(adminOptions.Password))
+        {
             throw new InvalidOperationException(
                 "Konfigurasjon for 'AdminUser' (Email/Password) mangler i appsettings.");
+        }
 
         var adminEmail = adminOptions.Email;
         var adminPassword = adminOptions.Password;
@@ -61,34 +65,32 @@ public static class IdentitySeeder
         }
 
         // 3. Testbrukere for Dev-modus fra JSON-fil
-        if (env.IsDevelopment()) await SeedDevUsersFromJsonAsync(userManager, env);
+        if (env.IsDevelopment())
+            await SeedDevUsersFromJsonAsync(userManager);
     }
 
-    private static async Task SeedDevUsersFromJsonAsync(UserManager<ApplicationUser> userManager, IHostEnvironment env)
+    private static async Task SeedDevUsersFromJsonAsync(UserManager<ApplicationUser> userManager)
     {
         var jsonFilePath = Path.Combine(AppContext.BaseDirectory, "Seeders", "seed-users.json");
 
         if (!File.Exists(jsonFilePath))
         {
-            // Sjekk om filen ligger i rot/prosjektmappe dersom den ikke finner den i output-mappen
             jsonFilePath = Path.Combine(Directory.GetCurrentDirectory(), "Seeders", "seed-users.json");
-            if (!File.Exists(jsonFilePath))
-                return;
+            if (!File.Exists(jsonFilePath)) return;
         }
 
         var jsonContent = await File.ReadAllTextAsync(jsonFilePath);
         var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
         var seedUsers = JsonSerializer.Deserialize<List<SeedUserDto>>(jsonContent, options);
 
-        if (seedUsers == null || seedUsers.Count == 0)
-            return;
+        if (seedUsers == null || seedUsers.Count == 0) return;
 
         var now = DateTime.UtcNow;
 
         foreach (var seedUser in seedUsers)
         {
-            if (await userManager.FindByEmailAsync(seedUser.Email) != null)
-                continue;
+            if (string.IsNullOrWhiteSpace(seedUser.Email)) continue;
+            if (await userManager.FindByEmailAsync(seedUser.Email) != null) continue;
 
             var createdAt = seedUser.CreatedAtDaysAgo.HasValue
                 ? now.AddDays(-seedUser.CreatedAtDaysAgo.Value)
@@ -98,7 +100,6 @@ public static class IdentitySeeder
                 ? now.AddDays(-seedUser.LastLoginDaysAgo.Value)
                 : null;
 
-            // Beregn datoer for tidslinjen basert på brukervilkårene
             DateTime? reminder7dSentAt = null;
             DateTime? lockout14dSentAt = null;
             DateTime? inactivity6mSentAt = null;
@@ -146,7 +147,6 @@ public static class IdentitySeeder
 
             if (seedUser.IsGoogleAccount)
             {
-                // Opprettes uten lokal passordhash
                 result = await userManager.CreateAsync(user);
                 if (result.Succeeded)
                 {
@@ -159,25 +159,31 @@ public static class IdentitySeeder
             {
                 var password = string.IsNullOrWhiteSpace(seedUser.Password) ? "DevUser123!" : seedUser.Password;
                 result = await userManager.CreateAsync(user, password);
-                if (result.Succeeded) await userManager.AddToRoleAsync(user, "User");
+                if (result.Succeeded)
+                    await userManager.AddToRoleAsync(user, "User");
             }
 
-            // Håndter låsing dersom kilden sier at den er låst
-            if (result.Succeeded && seedUser.IsLocked)
+            if (!result.Succeeded)
+            {
+                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                throw new InvalidOperationException($"Feilet ved seeding av bruker '{seedUser.Email}': {errors}");
+            }
+
+            if (seedUser.IsLocked)
                 await userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
         }
     }
 
     private class SeedUserDto
     {
-        public string Email { get; } = string.Empty;
-        public string FirstName { get; } = string.Empty;
-        public string LastName { get; } = string.Empty;
-        public bool EmailConfirmed { get; } = true;
-        public bool WelcomeCompleted { get; } = true;
+        public string Email { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public bool EmailConfirmed { get; set; } = true;
+        public bool WelcomeCompleted { get; set; } = true;
         public string? Password { get; set; }
-        public bool IsGoogleAccount { get; } = false;
-        public bool IsLocked { get; } = false;
+        public bool IsGoogleAccount { get; set; } = false;
+        public bool IsLocked { get; set; } = false;
         public string? LockoutReason { get; set; }
         public string? LockoutReasonDetails { get; set; }
         public int? CreatedAtDaysAgo { get; set; }
