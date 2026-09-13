@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
@@ -12,6 +12,31 @@
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1"/>
         <PackageReference Include="xunit" Version="2.9.3"/>
         <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4"/>
+
+        <!-- Mocking og assertions -->
+        <PackageReference Include="NSubstitute" Version="6.2.0"/>
+        <PackageReference Include="Shouldly" Version="4.3.0"/>
+
+        <!-- Databaseprovider for handler-/jobb-tester: ekte relasjonell semantikk uten Docker,
+             se Documentation/06-test-strategy.md pkt. 3 for hvorfor ikke EF Core In-Memory. -->
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.11"/>
+
+        <!-- MassTransit In-Memory Test Harness for consumer-tester -->
+        <PackageReference Include="MassTransit.TestFramework" Version="8.3.0"/>
+
+        <!-- WebApplicationFactory for API-/integrasjonstester -->
+        <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.11"/>
+
+        <!-- IAsyncEnumerable-hjelpere, bl.a. for å mocke IOpenIddictTokenManager.FindBySubjectAsync -->
+        <PackageReference Include="System.Linq.Async" Version="7.0.1"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\API\API.csproj"/>
+        <ProjectReference Include="..\Application\Application.csproj"/>
+        <ProjectReference Include="..\Persistence\Persistence.csproj"/>
+        <ProjectReference Include="..\Domain\Domain.csproj"/>
+        <ProjectReference Include="..\Contracts\Contracts.csproj"/>
     </ItemGroup>
 
     <ItemGroup>

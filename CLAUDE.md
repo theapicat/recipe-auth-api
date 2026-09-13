@@ -19,8 +19,8 @@ cd recipe-infrastructure && docker compose up -d
 Required local secrets (never put these in appsettings.json):
 ```bash
 cd API
-dotnet user-secrets set "Authentication:Google:ClientId" "..."
-dotnet user-secrets set "Authentication:Google:ClientSecret" "..."
+dotnet user-secrets set "AppSettings:GoogleClientId" "..."
+dotnet user-secrets set "AppSettings:GoogleClientSecret" "..."
 dotnet user-secrets set "JWT:SecretKey" "..."
 dotnet dev-certs https --trust
 ```
