@@ -1,10 +1,10 @@
+using Application.Mediator.Common;
+
 namespace Application.Mediator.Admin.Commands.UnlockUser;
 
-public class UnlockUserResult
+public class UnlockUserResult : OperationResult
 {
-    public bool IsSuccess { get; set; }
     public bool IsNotFound { get; set; }
-    public string? ErrorMessage { get; set; }
     public string? TargetEmail { get; set; }
 
     public static UnlockUserResult Success(string email)

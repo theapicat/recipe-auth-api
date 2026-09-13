@@ -1,14 +1,12 @@
+using Application.Mediator.Common;
 using Microsoft.AspNetCore.Identity;
 
 namespace Application.Mediator.Admin.Commands.DeleteAndBlacklistUser;
 
-public class DeleteAndBlacklistUserResult
+public class DeleteAndBlacklistUserResult : OperationResult
 {
-    public bool IsSuccess { get; set; }
     public bool IsBadRequest { get; set; }
     public bool IsNotFound { get; set; }
-    public string? ErrorMessage { get; set; }
-    public IEnumerable<IdentityError>? Errors { get; set; }
     public string? TargetEmail { get; set; }
 
     public static DeleteAndBlacklistUserResult Success(string email)

@@ -1,10 +1,10 @@
+using Application.Mediator.Common;
+
 namespace Application.Mediator.Admin.Commands.SendPasswordReset;
 
-public class AdminSendPasswordResetResult
+public class AdminSendPasswordResetResult : OperationResult
 {
-    public bool IsSuccess { get; set; }
     public bool IsNotFound { get; set; }
-    public string? ErrorMessage { get; set; }
     public string? TargetEmail { get; set; }
 
     public static AdminSendPasswordResetResult Success(string email)

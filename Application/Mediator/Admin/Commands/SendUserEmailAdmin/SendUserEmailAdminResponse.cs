@@ -1,11 +1,11 @@
+using Application.Mediator.Common;
+
 namespace Application.Mediator.Admin.Commands.SendUserEmailAdmin;
 
-public class SendUserEmailAdminResult
+public class SendUserEmailAdminResult : OperationResult
 {
-    public bool IsSuccess { get; set; }
     public bool IsBadRequest { get; set; }
     public bool IsNotFound { get; set; }
-    public string? ErrorMessage { get; set; }
     public string? TargetEmail { get; set; }
 
     public static SendUserEmailAdminResult Success(string email)

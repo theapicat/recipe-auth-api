@@ -1,12 +1,10 @@
-using Domain.DTOs.Account;
+using Application.Mediator.Common;
 using Domain.DTOs.Account.Responses;
 
 namespace Application.Mediator.Account.Queries.GetUserProfile;
 
-public class GetUserProfileResult
+public class GetUserProfileResult : OperationResult
 {
-    public bool IsSuccess { get; set; }
-    public string? ErrorMessage { get; set; }
     public UserProfileResponse? UserProfile { get; set; }
 
     public static GetUserProfileResult Success(UserProfileResponse profile)

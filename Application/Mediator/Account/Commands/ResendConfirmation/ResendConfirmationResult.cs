@@ -1,10 +1,10 @@
+using Application.Mediator.Common;
+
 namespace Application.Mediator.Account.Commands.ResendConfirmation;
 
-public class ResendConfirmationResult
+public class ResendConfirmationResult : OperationResult
 {
-    public bool IsSuccess { get; set; }
     public bool IsAlreadyConfirmed { get; set; }
-    public string? ErrorMessage { get; set; }
 
     public static ResendConfirmationResult Success()
     {

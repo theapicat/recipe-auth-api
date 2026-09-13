@@ -1,10 +1,9 @@
+using Application.Mediator.Common;
+
 namespace Application.Mediator.Admin.Commands.AddBlacklistEntry;
 
-public class AddBlacklistEntryResult
+public class AddBlacklistEntryResult : OperationResult
 {
-    public bool IsSuccess { get; set; }
-    public string? ErrorMessage { get; set; }
-
     public static AddBlacklistEntryResult Success()
     {
         return new AddBlacklistEntryResult { IsSuccess = true };

@@ -33,6 +33,10 @@ public class DeleteAndBlacklistUserCommandHandler(
         var fullName = $"{user.FirstName} {user.LastName}".Trim();
         var displayName = string.IsNullOrWhiteSpace(fullName) ? user.UserName ?? string.Empty : fullName;
 
+        // Svartelisting og sletting må lykkes sammen eller ikke i det hele tatt,
+        // så begge operasjonene utføres i én eksplisitt databasetransaksjon.
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
         // 1. Legg e-posten inn i svartelisten
         var blacklistEntry = new BlacklistedEntry
         {
@@ -48,9 +52,13 @@ public class DeleteAndBlacklistUserCommandHandler(
         // 2. Slett brukeren fra databasen
         var result = await userManager.DeleteAsync(user);
         if (!result.Succeeded)
+        {
+            await transaction.RollbackAsync(cancellationToken);
             return DeleteAndBlacklistUserResult.Failure(result.Errors);
+        }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         // 3. Publiser kombinert slett- og svartelistingsevent
         await publishEndpoint.Publish(new UserDeletedAndBlacklistedByAdminEvent

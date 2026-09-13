@@ -1,11 +1,11 @@
+using Application.Mediator.Common;
+
 namespace Application.Mediator.Admin.Commands.LockUser;
 
-public class LockUserResult
+public class LockUserResult : OperationResult
 {
-    public bool IsSuccess { get; set; }
     public bool IsBadRequest { get; set; }
     public bool IsNotFound { get; set; }
-    public string? ErrorMessage { get; set; }
     public string? TargetEmail { get; set; }
 
     public static LockUserResult Success(string email)

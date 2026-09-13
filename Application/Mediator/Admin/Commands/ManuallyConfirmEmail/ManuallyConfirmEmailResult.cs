@@ -1,11 +1,11 @@
+using Application.Mediator.Common;
+
 namespace Application.Mediator.Admin.Commands.ManuallyConfirmEmail;
 
-public class ManuallyConfirmEmailResult
+public class ManuallyConfirmEmailResult : OperationResult
 {
-    public bool IsSuccess { get; set; }
     public bool IsNotFound { get; set; }
     public bool IsAlreadyConfirmed { get; set; }
-    public string? ErrorMessage { get; set; }
     public string? TargetEmail { get; set; }
 
     public static ManuallyConfirmEmailResult Success(string email)

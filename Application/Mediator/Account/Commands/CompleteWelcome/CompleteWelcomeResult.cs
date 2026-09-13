@@ -1,14 +1,11 @@
-using Domain.DTOs.Account;
+using Application.Mediator.Common;
 using Domain.DTOs.Account.Responses;
 using Microsoft.AspNetCore.Identity;
 
 namespace Application.Mediator.Account.Commands.CompleteWelcome;
 
-public class CompleteWelcomeResult
+public class CompleteWelcomeResult : OperationResult
 {
-    public bool IsSuccess { get; set; }
-    public string? ErrorMessage { get; set; }
-    public IEnumerable<IdentityError>? Errors { get; set; }
     public UserProfileResponse? UserProfile { get; set; }
 
     public static CompleteWelcomeResult Success(UserProfileResponse profile)

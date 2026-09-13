@@ -1,14 +1,11 @@
-using Domain.DTOs.Account;
+using Application.Mediator.Common;
 using Domain.DTOs.Account.Responses;
 using Microsoft.AspNetCore.Identity;
 
 namespace Application.Mediator.Account.Commands.Register;
 
-public class RegisterUserResult
+public class RegisterUserResult : OperationResult
 {
-    public bool IsSuccess { get; set; }
-    public string? ErrorMessage { get; set; }
-    public IEnumerable<IdentityError>? Errors { get; set; }
     public UserProfileResponse? UserProfile { get; set; }
 
     public static RegisterUserResult Success(UserProfileResponse profile)

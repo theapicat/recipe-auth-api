@@ -331,23 +331,16 @@ public class AccountController(
     }
 
 
-    // DEV :: depicate me please
     private async Task<ApplicationUser?> GetCurrentUserAsync()
     {
-        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier)
-                           ?? User.FindFirstValue(OpenIddictConstants.Claims.Subject)
-                           ?? Request.Headers["X-User-Id"].FirstOrDefault();
-
-        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId)) return null;
-
-        return await userManager.FindByIdAsync(userId.ToString());
+        var userId = GetCurrentUserId();
+        return userId == null ? null : await userManager.FindByIdAsync(userId.Value.ToString());
     }
 
     private Guid? GetCurrentUserId()
     {
         var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier)
-                           ?? User.FindFirstValue(OpenIddictConstants.Claims.Subject)
-                           ?? Request.Headers["X-User-Id"].FirstOrDefault();
+                           ?? User.FindFirstValue(OpenIddictConstants.Claims.Subject);
 
         return Guid.TryParse(userIdString, out var userId) ? userId : null;
     }

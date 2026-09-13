@@ -1,13 +1,10 @@
+using Application.Mediator.Common;
 using Microsoft.AspNetCore.Identity;
 
 namespace Application.Mediator.Account.Commands.SetPassword;
 
-public class SetPasswordResult
+public class SetPasswordResult : OperationResult
 {
-    public bool IsSuccess { get; set; }
-    public string? ErrorMessage { get; set; }
-    public IEnumerable<IdentityError>? Errors { get; set; }
-
     public static SetPasswordResult Success()
     {
         return new SetPasswordResult { IsSuccess = true };

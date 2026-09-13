@@ -1,13 +1,11 @@
+using Application.Mediator.Common;
 using Microsoft.AspNetCore.Identity;
 
 namespace Application.Mediator.Account.Commands.DeleteAccount;
 
-public class DeleteAccountResult
+public class DeleteAccountResult : OperationResult
 {
-    public bool IsSuccess { get; set; }
     public bool IsForbidden { get; set; }
-    public string? ErrorMessage { get; set; }
-    public IEnumerable<IdentityError>? Errors { get; set; }
 
     public static DeleteAccountResult Success()
     {

@@ -1,13 +1,11 @@
+using Application.Mediator.Common;
 using Microsoft.AspNetCore.Identity;
 
 namespace Application.Mediator.Admin.Commands.UpdateUser;
 
-public class AdminUpdateUserResult
+public class AdminUpdateUserResult : OperationResult
 {
-    public bool IsSuccess { get; set; }
     public bool IsNotFound { get; set; }
-    public string? ErrorMessage { get; set; }
-    public IEnumerable<IdentityError>? Errors { get; set; }
 
     public static AdminUpdateUserResult Success()
     {

@@ -1,13 +1,10 @@
+using Application.Mediator.Common;
 using Microsoft.AspNetCore.Identity;
 
 namespace Application.Mediator.Account.Commands.ChangePassword;
 
-public class ChangePasswordResult
+public class ChangePasswordResult : OperationResult
 {
-    public bool IsSuccess { get; set; }
-    public string? ErrorMessage { get; set; }
-    public IEnumerable<IdentityError>? Errors { get; set; }
-
     public static ChangePasswordResult Success()
     {
         return new ChangePasswordResult { IsSuccess = true };

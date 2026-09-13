@@ -1,11 +1,11 @@
+using Application.Mediator.Common;
+
 namespace Application.Mediator.Admin.Commands.AdminResendConfirmation;
 
-public class AdminResendConfirmationResult
+public class AdminResendConfirmationResult : OperationResult
 {
-    public bool IsSuccess { get; set; }
     public bool IsNotFound { get; set; }
     public bool IsAlreadyConfirmed { get; set; }
-    public string? ErrorMessage { get; set; }
     public string? TargetEmail { get; set; }
 
     public static AdminResendConfirmationResult Success(string email)

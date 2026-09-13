@@ -1,12 +1,10 @@
-using Domain.DTOs.Admin;
+using Application.Mediator.Common;
 using Domain.DTOs.Admin.Responses;
 
 namespace Application.Mediator.Admin.Queries.GetUserDetails;
 
-public class GetUserDetailsResult
+public class GetUserDetailsResult : OperationResult
 {
-    public bool IsSuccess { get; set; }
-    public string? ErrorMessage { get; set; }
     public AdminUserDetailsResponse? Details { get; set; }
 
     public static GetUserDetailsResult Success(AdminUserDetailsResponse details)

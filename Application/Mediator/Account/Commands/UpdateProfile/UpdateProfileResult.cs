@@ -1,15 +1,12 @@
-using Domain.DTOs.Account;
+using Application.Mediator.Common;
 using Domain.DTOs.Account.Responses;
 using Microsoft.AspNetCore.Identity;
 
 namespace Application.Mediator.Account.Commands.UpdateProfile;
 
-public class UpdateProfileResult
+public class UpdateProfileResult : OperationResult
 {
-    public bool IsSuccess { get; set; }
     public bool IsForbidden { get; set; }
-    public string? ErrorMessage { get; set; }
-    public IEnumerable<IdentityError>? Errors { get; set; }
     public UserProfileResponse? UserProfile { get; set; }
 
     public static UpdateProfileResult Success(UserProfileResponse profile)

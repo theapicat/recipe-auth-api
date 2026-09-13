@@ -1,13 +1,11 @@
+using Application.Mediator.Common;
 using Microsoft.AspNetCore.Identity;
 
 namespace Application.Mediator.Account.Commands.ConfirmEmail;
 
-public class ConfirmEmailResult
+public class ConfirmEmailResult : OperationResult
 {
-    public bool IsSuccess { get; set; }
     public bool IsNotFound { get; set; }
-    public string? ErrorMessage { get; set; }
-    public IEnumerable<IdentityError>? Errors { get; set; }
 
     public static ConfirmEmailResult Success()
     {
