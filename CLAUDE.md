@@ -38,6 +38,19 @@ dotnet build
 dotnet run --project API          # http://localhost:5001 / https://localhost:7001
 ```
 
+Docker (requires `recipe-infrastructure`'s stack up first, since it creates the external `recipe-net`
+bridge network and `recipe-auth-db`):
+```bash
+docker compose up --build -d
+```
+Base image is `mcr.microsoft.com/dotnet/aspnet:10.0`, not `dotnet/runtime` — `Serilog.AspNetCore` needs the
+ASP.NET Core shared framework at runtime regardless. `docker-compose.yml` only overrides the config keys
+that must point at container names instead of `localhost` on `recipe-net` (`ConnectionStrings__DefaultConnection`,
+`RabbitMQ__Host`, the Seq URL); the JWT signing key needs no override since the dev value already baked into
+`appsettings.json` matches what `recipe-gateway-api` validates against. `.env` only parametrizes `AUTH_API_PORT`
+(default `5001` — bump it if a local `dotnet run` is already bound to that port) and the Google OAuth2
+credentials, which stay placeholders unless you actually need Google login to work from inside a container.
+
 Tests:
 ```bash
 dotnet test Tests/Tests.csproj

@@ -1,0 +1,25 @@
+networks:
+  recipe-net:
+    name: recipe-net
+    external: true
+
+services:
+  recipe-auth-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: recipe-auth-api
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      # Overstyrer til interne container-navn på recipe-net (appsettings.Development.json peker
+      # mot localhost, som kun fungerer når tjenesten kjøres direkte på host-maskinen).
+      - ConnectionStrings__DefaultConnection=Host=recipe-auth-db;Port=5432;Database=recipe_auth_db;Username=auth_user;Password=auth_secure_password_dev;Client Encoding=UTF8;
+      - RabbitMQ__Host=recipe-message-broker
+      - Serilog__WriteTo__1__Args__serverUrl=http://recipe-seq:80
+      - AppSettings__GoogleClientId=${GOOGLE_CLIENT_ID:-DIN_GOOGLE_CLIENT_ID.apps.googleusercontent.com}
+      - AppSettings__GoogleClientSecret=${GOOGLE_CLIENT_SECRET:-DIN_GOOGLE_CLIENT_SECRET}
+    ports:
+      - "${AUTH_API_PORT:-5001}:80"
+    networks:
+      - recipe-net

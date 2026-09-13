@@ -72,6 +72,33 @@ dotnet dev-certs https --trust
 
 ---
 
+## 🐳 Kjøre med Docker
+
+Tjenesten kan containeriseres og kobles til den delte `recipe-net`-broen som `recipe-infrastructure` oppretter.
+
+```bash
+# 1. Start recipe-infrastructure først (oppretter recipe-net og recipe-auth-db)
+# 2. Bygg og start recipe-auth-api mot den:
+docker compose up --build -d
+```
+
+* **Basisimage:** `mcr.microsoft.com/dotnet/aspnet:10.0` (ikke `dotnet/runtime`) — `Serilog.AspNetCore`
+  krever `Microsoft.AspNetCore.App`-rammeverket ved kjøretid selv om dette er et Web API og ikke bare
+  en bakgrunnstjeneste.
+* **Miljø:** `docker-compose.yml` overstyrer kun det som må peke mot interne container-navn på
+  `recipe-net` i stedet for `localhost` (`ConnectionStrings__DefaultConnection` → `recipe-auth-db`,
+  `RabbitMQ__Host` → `recipe-message-broker`, Seq-URL → `recipe-seq`). JWT-signeringsnøkkelen trenger
+  ingen overstyring — dev-verdien i `appsettings.json` er allerede den samme som `recipe-gateway-api`
+  validerer mot.
+* **`.env`:** Kun `AUTH_API_PORT` (host-port, default `5001`) og Google OAuth2-legitimasjon
+  (`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`) er parametriserbare — sistnevnte er kun nødvendig hvis du
+  faktisk vil teste Google-innlogging fra en container (lokalt kjører du heller via `dotnet user-secrets`,
+  se steg 2 under).
+* Kjører du samtidig lokalt med `dotnet run` (port 5001), sett `AUTH_API_PORT` til noe annet i `.env`
+  for å unngå portkollisjon.
+
+---
+
 ## 🔑 Autentisering og Endepunkter
 
 All innkommende trafikk rutes gjennom API Gateway med prefikset `/api/auth/*`. Kontrollerne er utformet som tynne kontrollere som videresender forespørsler til MediatR.
