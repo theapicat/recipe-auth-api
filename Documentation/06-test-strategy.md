@@ -1,15 +1,16 @@
 # Teststrategi for `recipe-auth-api`
 
+> Revidert etter en full kodegjennomgang. Det opprinnelige utkastet (generert med begrenset innsyn i faktisk kode) fikk riktig overordnet struktur, men bommet på noen konkrete verktøyvalg og manglet en del sikkerhetskritiske edge-caser som bare dukker opp når man faktisk leser handlerne. De er lagt til under.
 
 ## 1. Formål og Testfilosofi
 
-Siden `recipe-auth-api` er den mest kritiske sikkerhets- og identitetstjenesten i Kjøkkenhylla-plattformen (håndtering av autentisering, autorisasjon, OpenIddict-tokens, sikkerhets-cookies og svartelisting), må teststrategien gi 100 % trygghet uten at testkjøringen blir treg eller vanskelig å vedlikeholde.
+Siden `recipe-auth-api` er den mest kritiske sikkerhets- og identitetstjenesten i Kjøkkenhylla-plattformen (autentisering, autorisasjon, OpenIddict-tokens, svartelisting), skal teststrategien gi høy trygghet uten at testkjøringen blir treg eller vanskelig å vedlikeholde.
 
 Strategien bygger på en lagdelt testpyramide forankret i Clean Architecture:
 
-* **Forretningslogikken isoleres:** Kontrollerne i Auth API er bevisst tynne og gjør lite annet enn å rute innkommende HTTP-forespørsler direkte videre til MediatR.
-* **MediatR er arbeidshesten:** Den reelle enhetstestingen skjer på MediatR Commands, Queries og Handlers i `Application`-laget.
-* **In-Memory isolasjon:** Både database og meldingsbuss kjøres i minnet under testing, slik at testsettet kjører lynraskt uten eksterne avhengigheter til Docker eller fysiske databaser.
+* **Forretningslogikken isoleres:** Kontrollerne er bevisst tynne og gjør lite annet enn å rute HTTP-forespørsler videre til MediatR.
+* **MediatR er arbeidshesten:** Den reelle enhetstestingen skjer på Commands, Queries og Handlers i `Application`-laget.
+* **Sociable, ikke fullstendig isolert, der Identity er involvert:** Se punkt 3 — `UserManager`/`SignInManager` mockes ikke, de kjøres ekte mot en lettvekts database.
 
 ---
 
@@ -17,63 +18,97 @@ Strategien bygger på en lagdelt testpyramide forankret i Clean Architecture:
 
 ### Lag 1: Enhetstesting av Forretningslogikk (MediatR Handlers)
 
-* **Hovedfokus:** Dette utgjør kjernen i enhetstestene. Siden controllere kun fungerer som tynne ruting-komponenter, ligger hele forretningslogikken i MediatR-behandlerne.
-* **Hva verifiseres:**
-* Validering av input og forretningsregler (f.eks. avvisning av registrering dersom e-posten ligger i svartelisten).
-* Tilstandsendringer i Identity- systemet (passordbytte, e-postbekreftelse, brukerprofilering).
-* Korrekt publisering av utgående domene-hendelser over MassTransit (f.eks. `UserRegisteredEvent`).
-
-
-* **Testmetode:** Handlere testes i full isolasjon. Eksterne avhengigheter (`UserManager`, `SignInManager`, `IPublishEndpoint`) mockes ut, mens datatiltand valideres mot en In-Memory EF Core database.
+* **Hovedfokus:** Kjernen i enhetstestene — all forretningslogikk ligger i MediatR-behandlerne.
+* **Hva verifiseres:** input-validering og forretningsregler, tilstandsendringer i Identity, korrekt publisering av utgående hendelser.
+* **Testmetode:** `UserManager<ApplicationUser>`/`SignInManager<ApplicationUser>` kjøres ekte mot en EF Core-database i minnet (se punkt 3 om providervalg) — ikke som mock. Rene grensesnitt (`IPublishEndpoint`, `ITokenService`, `IOpenIddictTokenManager`, `IOpenIddictApplicationManager`) mockes med NSubstitute.
 
 ### Lag 2: Hendelses- og Meldingstesting (MassTransit Consumers)
 
-* **Hovedfokus:** Verifisere asynkron, event-drevet kommunikasjon fra andre mikrotjenester.
-* **Hva verifiseres:**
-* Reaksjonsmønstre på meldinger utenfra – spesielt `InvalidEmailDetectedConsumer` ved uleverbare e-poster (Hard Bounce fra Notification Service).
-* At mottak av hendelsen utløser korrekt sikkerhetsrespons: permanent sletting av brukerkontoen, oppføring i `BlacklistedEntries`, og umiddelbar revokering av aktive OpenIddict-tokens.
-
-
-* **Testmetode:** Kjøres i minnet via MassTransit sin In-Memory Test Harness uten behov for en ekstern RabbitMQ-broker.
+* **Hovedfokus:** Asynkron, event-drevet kommunikasjon — særlig `InvalidEmailDetectedConsumer`.
+* **Hva verifiseres:** at mottak av `InvalidEmailDetectedEvent` utløser svartelisting, token-revokering (`IOpenIddictTokenManager`) og kontosletting — **og at gjentatt levering av samme event er trygt** (se testmatrise, punkt 4.3).
+* **Testmetode:** MassTransit sin In-Memory Test Harness (`AddMassTransitTestHarness`). `IOpenIddictTokenManager.FindBySubjectAsync` returnerer `IAsyncEnumerable<object>` — NSubstitute krever et lite hjelpeoppsett for dette (f.eks. `System.Linq.Async` sin `ToAsyncEnumerable()`), ikke en triviell `Returns(...)`.
 
 ### Lag 3: Bakgrunnsjobber og Livsløpslogikk (Quartz.NET)
 
-* **Hovedfokus:** Automatiserte, tidsstyrte oppryddings- og vedlikeholdsprosesser (`AccountLifecycleJob`).
-* **Hva verifiseres:**
-* **Opprydding av ubekreftede kontoer:** Korrekt tidslinje for e-postpåminnelse (7 dager), sperring (14 dager) og permanent sletting (30 dager).
-* **Inaktivitet:** Varsling etter 6 måneders inaktivitet og sperring etter 1 år.
-
-
-* **Testmetode:** Eksekvering av jobblogikken direkte mot In-Memory databasen med tidsmanipulerte tilstander på brukerkontoene (`CreatedAt`, `LastLoginAt`).
+* **Hovedfokus:** `AccountLifecycleJob`.
+* **Hva verifiseres:** de 6 uavhengige skannene (7d/14d/30d ubekreftet, 6m/1y/1y+30d inaktivitet) med tidsmanipulerte kontoer, **inkludert at de seks skannene kan overlappe i én og samme jobbkjøring** (se 4.4) og at admin-kontoer aldri rammes (`GetAdminUserIdsQuery`).
+* **Testmetode:** Kjøres direkte mot databasen i minnet — se providervalg i punkt 3, siden `GetAdminUserIdsQuery` bruker en `Join`+`Contains`-spørring som ikke alltid oversettes likt på tvers av EF-providere.
 
 ### Lag 4: API- og Integrasjonstesting (Controllers & OpenIddict)
 
-* **Hovedfokus:** Verifisere at hele HTTP-pipelinen, middleware, OpenIddict token-utstedelse og rollebasert autorisasjon fungerer som en helhet.
-* **Hva verifiseres:**
-* **OAuth2 / OpenIddict:** Korrekt utstedelse og fornyelse av JWT og Refresh Tokens via `/connect/token`.
-* **Sikkerhet og Cookies:** Verifisering av at følsomme sesjonstokens returneres i `HttpOnly` cookies.
-* **Autorisasjon:** At administrative endepunkter (`/api/admin/*`) krever Admin-rolle, og avviser vanlige brukere eller uautentiserte forespørsler med korrekt HTTP-statuskode (401/403).
-
-
-* **Testmetode:** Kjøres som "end-to-end" tester mot `WebApplicationFactory` i et kontrollert testmiljø.
+* **Hovedfokus:** Hele HTTP-pipelinen, OpenIddict token-utstedelse, rollebasert autorisasjon.
+* **Hva verifiseres:** token-utstedelse/fornyelse via `/connect/token`, at `/api/auth/admin/*` krever Admin-rolle (401/403 for andre).
+* **Testmetode:** `WebApplicationFactory` — se providervalg i punkt 3, dette er laget der valg av databaseprovider betyr mest.
 
 ---
 
-## 3. Testverktøy og Biblioteker
+## 3. Testverktøy og Biblioteker — med to korrigerte valg
 
-For å holde testkoden konsistent med resten av økosystemet benyttes følgende etablerte verktøy:
+* **xUnit, NSubstitute, Shouldly:** Som opprinnelig planlagt.
+* **MassTransit Test Framework:** Som opprinnelig planlagt.
+* **Databaseprovider — SQLite in-memory i stedet for EF Core In-Memory:** `UseSqlite("DataSource=:memory:")` med en åpen `SqliteConnection` holdt i live for testens levetid. **Begrunnelse:** EF Core sin rene In-Memory-provider er ikke en relasjonell motor — den håndterer ikke alltid `Join`+`Contains`-spørringer korrekt (brukt i `AccountLifecycleJob.GetAdminUserIdsQuery`), og OpenIddict sine EF Core-stores forutsetter reell relasjonell oppførsel (unike constraints, transaksjoner) som In-Memory-provideren ikke håndhever. SQLite in-memory gir ekte SQL-semantikk uten Docker-avhengighet, og fungerer med både Identity og OpenIddict sine EF Core-stores.
+* **Ekte `UserManager`/`SignInManager` i stedet for NSubstitute-mocks av dem:** Disse klassene har mye intern logikk (passordhashing, lockout-telling, concurrency stamps, e-post-normalisering) som er upraktisk og risikabelt å re-implementere korrekt via mocks — man ender fort med å teste mock-oppsettet i stedet for ekte atferd. Sett dem opp én gang via `AddIdentity<ApplicationUser, IdentityRole<Guid>>().AddEntityFrameworkStores<ApplicationDbContext>()` mot SQLite in-memory, og gjenbruk oppsettet i et delt test-fixture.
+* **Microsoft.AspNetCore.Mvc.Testing (`WebApplicationFactory`):** Som opprinnelig planlagt, for Lag 4.
 
-* **xUnit:** Hovedrammeverk for testkjøring og strukturering.
-* **NSubstitute:** Enkelt og lesbart mocking-bibliotek for å erstatte grensesnitt og avhengigheter.
-* **Shouldly:** Ekspressivt assertion-bibliotek som gir klare og lesbare feilmeldinger hvis en test feiler.
-* **MassTransit Test Framework:** In-memory harness for testing av meldingskøer, consumers og event-publisering.
-* **EF Core In-Memory:** Rask database i minnet for isolert testing av datatransaksjoner og identitetsoperasjoner.
-* **Microsoft.AspNetCore.Mvc.Testing (`WebApplicationFactory`):** Rigg for end-to-end API- og integrasjonstester.
+### Forutsetninger før vi kan skrive noe som helst
+
+`Tests.csproj` mangler i dag alt av dette — kun `xunit`, `coverlet.collector` og test-SDK er der, og det finnes **ingen `ProjectReference`** til `Application`, `API`, `Persistence`, `Domain` eller `Contracts`. Før første test skrives må vi legge til:
+
+* `ProjectReference` til `Application`, `API`, `Persistence`, `Domain`, `Contracts`
+* `NSubstitute`
+* `Shouldly`
+* `MassTransit.TestFramework`
+* `Microsoft.EntityFrameworkCore.Sqlite` (til in-memory SQLite, se over)
+* `Microsoft.AspNetCore.Mvc.Testing`
+* `Microsoft.AspNetCore.Identity.EntityFrameworkCore` (allerede transitivt via `Persistence`, men verdt å sjekke)
 
 ---
 
-## 4. Retningslinjer for Vedlikehold og CI/CD
+## 4. Konkret sikkerhetstestmatrise
 
-1. **Rask tilbakemelding:** Enhetstester for MediatR-handlere og event-consumers skal kjøres på få sekunder lokalt i IDE/terminal før kode commitles.
-2. **Krav ved nye funksjoner:** Hver gang en ny MediatR Command eller Query legges til i `Application`-laget, skal det skrives tilhørende enhetstester som dekker både suksess- og feilscenarier.
-3. **Automatisert pipeline:** Hele testsettet (unit, consumer, job og integrasjon) kjøres automatisk i CI/CD-pipelinen ved bygging og Pull Requests.
+Dette er scenarioer funnet ved faktisk å lese handlerne — ikke generiske "test suksess og feil"-punkter, men konkrete ting som *ville* vært lett å overse.
+
+### 4.1 Admin-vs-admin-beskyttelse (nylig rettet, må låses fast med tester)
+
+`LockUserCommandHandler`, `DeleteUserAdminCommandHandler`, `DeleteAndBlacklistUserCommandHandler` og `AdminUpdateUserCommandHandler` blokkerte tidligere kun *selv*-handling (`CurrentAdminId == targetGuid`) — en admin kunne låse, slette eller endre e-posten til en **annen** admin-konto uten sperre. Dette er nå rettet: alle fire sjekker `userManager.IsInRoleAsync(target, "Admin")` og avviser handlingen uansett hvem som er mål. Testmatrise per handler:
+
+* Admin A låser/sletter/endrer bruker B (vanlig bruker) → skal lykkes.
+* Admin A låser/sletter/endrer **seg selv** → skal avvises (`IsBadRequest`/`IsForbidden`, spesifikk melding).
+* Admin A låser/sletter/endrer **Admin B** (en annen administrator) → skal avvises (`IsBadRequest`, generisk "annen administratorkonto"-melding).
+* `UnlockUserCommandHandler` har **ingen** slik sjekk i det hele tatt (kun `NotFound`) — vurder om oppheving av sperre på en admin-konto er en risiko verdt samme behandling, eller om det er trygt nok siden admin-kontoer aldri kan bli sperret av `AccountLifecycleJob` i utgangspunktet. Skriv en test som dokumenterer *dagens* valgte atferd eksplisitt, uansett konklusjon.
+
+### 4.2 Svarteliste — konsistens på tvers av to uavhengige implementasjoner
+
+`RegisterUserCommandHandler` og `ProcessGoogleCallbackCommandHandler` implementerer *samme* sjekk (eksakt e-post OG domene) helt uavhengig av hverandre. Skriv **parametriserte tester som kjører identiske scenarioer mot begge handlerne** (eksakt match, domene-match, case-sensitivitet — `Pattern.ToLower()` vs. innkommende e-post med blandet case, subdomene-forsøk som `bruker@sub.svartelistet-domene.no` som *ikke* skal matche et rent domene-mønster på `svartelistet-domene.no` med mindre det er tiltenkt). Dersom disse noensinne driver fra hverandre, skal testene fange det umiddelbart — vurder på sikt å trekke sjekken ut til en delt tjeneste.
+
+### 4.3 `InvalidEmailDetectedConsumer` — idempotens ved gjenlevering
+
+* Samme event konsumeres to ganger på rad → ingen duplikat i `BlacklistedEntries` (denne sjekken finnes allerede: `isAlreadyBlacklisted`), og andre kjøring (bruker allerede slettet) skal ikke kaste exception, bare logge og fortsette.
+* Event uten `UserId` (kun e-post) mot en bruker som har byttet e-post siden → verifiser oppslag på e-post fungerer som forventet fallback.
+* Bruker med aktive OpenIddict-tokens → verifiser at *alle* tokens faktisk revokeres (`TryRevokeAsync` kalt per token, ikke bare første) før sletting.
+
+### 4.4 `AccountLifecycleJob` — overlappende skann i én kjøring
+
+De 6 skannene er uavhengige og ekskluderer ikke hverandre. En bruker som er registrert og ubekreftet i 35 dager når jobben kjører for første gang (f.eks. etter nedetid), vil kunne bli **påminnet (skann 1), sperret (skann 2) og slettet (skann 3) i samme jobbkjøring** — slettingen i skann 3 sjekker ikke om skann 1/2 sine "sendt"-flagg er satt. Dette er sannsynligvis OK (sluttresultatet — sletting — er korrekt), men bør være et **eksplisitt, dokumentert testscenario**, ikke noe som oppdages ved en tilfeldighet senere. Test også: en admin-konto som ellers ville trigget alle 6 skannene skal ikke røres av noen av dem (`GetAdminUserIdsQuery`-ekskluderingen).
+
+### 4.5 Token-livssyklus
+
+* `PasswordGrantCommandHandler`/`RefreshTokenGrantCommandHandler`: sperret konto (`LockoutEnd` i fremtiden) og deaktivert konto (`CanSignInAsync == false` uten lockout) er to *forskjellige* tilstander — test begge separat, ikke bare én som proxy for begge.
+* Refresh-token-flyten stoler på `AuthenticatedPrincipal.GetClaim(Subject)` — test at en bruker slettet *etter* at et gyldig refresh-token ble utstedt, men *før* det brukes til fornyelse, korrekt avvises (`FindByIdAsync` returnerer null).
+* Faktisk token-revokering (Lag 4/integrasjon): etter at `DeleteAndBlacklistUserCommandHandler` eller `InvalidEmailDetectedConsumer` revokerer tokens, skal et påfølgende `refresh_token`-kall med det revokerte tokenet faktisk avvises av OpenIddict selv — dette er en integrasjonstest, ikke en unit test, siden avvisningen skjer i OpenIddict sin egen valideringspipeline før handleren nås.
+
+### 4.6 Google-callback — rekkefølge
+
+Svartelistesjekken skjer *før* både oppslag på eksisterende bruker og opprettelse av ny bruker (`ProcessGoogleCallbackCommandHandler`, steg 1). Test eksplisitt at en svartelistet e-post **aldri** når frem til `userManager.CreateAsync`/`AddLoginAsync` i det hele tatt (ikke bare at resultatet blir feil — bruk en spy/mock-verifisering på at disse metodene ikke ble kalt).
+
+### 4.7 Transaksjonsatferd i `DeleteAndBlacklistUserCommandHandler`
+
+Denne handleren bruker nå en eksplisitt DB-transaksjon (se tidligere endring). Test at hvis `userManager.DeleteAsync` feiler, blir svartelisteoppføringen **rullet tilbake** (ikke hengende igjen uten tilhørende sletting) — dette krever en ekte transaksjonell provider (SQLite in-memory), ikke EF Core In-Memory, som ikke støtter ekte transaksjoner.
+
+---
+
+## 5. Retningslinjer for Vedlikehold og CI/CD
+
+1. **Rask tilbakemelding:** Enhetstester for MediatR-handlere og event-consumers skal kjøre på få sekunder lokalt før commit.
+2. **Krav ved nye funksjoner:** Hver ny MediatR Command/Query skal ha tilhørende tester som dekker suksess- og feilscenarier — inkludert eventuelle admin/selv-beskyttelses-sjekker, etter mønsteret i punkt 4.1.
+3. **Automatisert pipeline:** Hele testsettet kjøres automatisk i CI/CD ved bygging og Pull Requests.

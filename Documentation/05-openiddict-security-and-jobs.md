@@ -89,17 +89,15 @@ POST /api/auth/connect/token
 
 ### Konfigurasjon og Hemmeligheter (Google OAuth)
 
-Google Client ID og Client Secret hentes fra konfigurasjonsstrukturen under seksjonen `Authentication:Google` (eller `Google`).
+Google Client ID og Client Secret hentes fra konfigurasjonsstrukturen under seksjonen `AppSettings` (`AppSettings:GoogleClientId` / `AppSettings:GoogleClientSecret`), lest direkte i `ApplicationExtensions.AddApplicationServices`.
 
 #### Konfigurasjonseksempel (`appsettings.json` / `appsettings.Development.json`):
 
 ```json
 {
-  "Authentication": {
-    "Google": {
-      "ClientId": "DIN_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
-      "ClientSecret": "DIN_GOOGLE_CLIENT_SECRET"
-    }
+  "AppSettings": {
+    "GoogleClientId": "DIN_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
+    "GoogleClientSecret": "DIN_GOOGLE_CLIENT_SECRET"
   }
 }
 
@@ -111,8 +109,8 @@ For å unngå at hemmeligheter havner i kildekontroll, benyttes .NET User Secret
 
 * **Via .NET User Secrets (CLI):**
 ```bash
-dotnet user-secrets set "Authentication:Google:ClientId" "YOUR_CLIENT_ID" --project API
-dotnet user-secrets set "Authentication:Google:ClientSecret" "YOUR_CLIENT_SECRET" --project API
+dotnet user-secrets set "AppSettings:GoogleClientId" "YOUR_CLIENT_ID" --project API
+dotnet user-secrets set "AppSettings:GoogleClientSecret" "YOUR_CLIENT_SECRET" --project API
 
 ```
 

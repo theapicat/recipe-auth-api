@@ -1,18 +1,18 @@
 # recipe-auth-api
 
-Autentiserings- og identitetstjeneste for Kjøkkenhylla-plattformen[cite: 1]. Tjenesten er bygget på **.NET 10** med **Clean Architecture**, **CQRS (MediatR)**, **OpenIddict** (OAuth2/OIDC), **ASP.NET Core Identity**, **MassTransit** (RabbitMQ) og **Quartz.NET**[cite: 1].
+Autentiserings- og identitetstjeneste for Kjøkkenhylla-plattformen. Tjenesten er bygget på **.NET 10** med **Clean Architecture**, **CQRS (MediatR)**, **OpenIddict** (OAuth2/OIDC), **ASP.NET Core Identity**, **MassTransit** (RabbitMQ) og **Quartz.NET**.
 
 ---
 
 ## 🏗️ Arkitektur og Lagdeling
 
-Applikasjonen følger prinsippene for Clean Architecture for å sikre klar ansvarsfordeling, testbarhet og uavhengighet fra eksterne rammeverk[cite: 2]:
+Applikasjonen følger prinsippene for Clean Architecture for å sikre klar ansvarsfordeling, testbarhet og uavhengighet fra eksterne rammeverk:
 
-* **`API`:** Innfallsvinkelen for applikasjonen. Inneholder HTTP-kontrollere, MassTransit event-consumers (`InvalidEmailDetectedConsumer`), Quartz-bakgrunnsjobber (`AccountLifecycleJob`) og utvidelser for DI-registrering[cite: 2].
-* **`Application`:** Kjernen i forretningslogikken. Inneholder alle CQRS Commands, Queries og Handlers, samt `TokenService` for sammensetting av `ClaimsPrincipal` og JWT-utstedelse[cite: 2].
-* **`Domain`:** Inneholder kjernemodeller, entiteter (`ApplicationUser`, `BlacklistedEntry`), enumer, DTO-er og konfigurasjonsklasser (`Options`)[cite: 2].
-* **`Contracts`:** Inneholder rene datakontrakter for eventer som publiseres over meldingsbussen (oppdelt i `UserActions`, `AdminActions` og `SystemActions`)[cite: 2].
-* **`Persistence`:** Håndterer databasemodellering mot PostgreSQL via Entity Framework Core, ASP.NET Core Identity og lagringsadaptere for OpenIddict[cite: 2].
+* **`API`:** Innfallsvinkelen for applikasjonen. Inneholder HTTP-kontrollere, MassTransit event-consumers (`InvalidEmailDetectedConsumer`), Quartz-bakgrunnsjobber (`AccountLifecycleJob`) og utvidelser for DI-registrering.
+* **`Application`:** Kjernen i forretningslogikken. Inneholder alle CQRS Commands, Queries og Handlers, samt `TokenService` for sammensetting av `ClaimsPrincipal` og JWT-utstedelse.
+* **`Domain`:** Inneholder kjernemodeller, entiteter (`ApplicationUser`, `BlacklistedEntry`), enumer, DTO-er og konfigurasjonsklasser (`Options`).
+* **`Contracts`:** Inneholder rene datakontrakter for eventer som publiseres over meldingsbussen (oppdelt i `UserActions`, `AdminActions` og `SystemActions`).
+* **`Persistence`:** Håndterer databasemodellering mot PostgreSQL via Entity Framework Core, ASP.NET Core Identity og lagringsadaptere for OpenIddict.
 
 ---
 
@@ -20,12 +20,12 @@ Applikasjonen følger prinsippene for Clean Architecture for å sikre klar ansva
 
 ### 1. Start Felles Infrastruktur (`recipe-infrastructure`)
 
-Lokal infrastruktur (PostgreSQL, RabbitMQ, MongoDB, Seq, Mailpit m.m.) håndteres sentralt via prosjektet [`recipe-infrastructure`](https://github.com/theapicat/recipe-infrastructure)[cite: 1].
+Lokal infrastruktur (PostgreSQL, RabbitMQ, MongoDB, Seq, Mailpit m.m.) håndteres sentralt via prosjektet [`recipe-infrastructure`](https://github.com/theapicat/recipe-infrastructure).
 
-Klon og start containerne før du kjører `recipe-auth-api`[cite: 1]:
+Klon og start containerne før du kjører `recipe-auth-api`:
 
 ```bash
-git clone [https://github.com/theapicat/recipe-infrastructure.git](https://github.com/theapicat/recipe-infrastructure.git)
+git clone https://github.com/theapicat/recipe-infrastructure.git
 cd recipe-infrastructure
 docker compose up -d
 

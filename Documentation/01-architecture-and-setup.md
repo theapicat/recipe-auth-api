@@ -1,29 +1,29 @@
 # recipe-auth-api
 
-Autentiserings- og identitetstjeneste for Kjøkkenhylla-plattformen[cite: 2]. Tjenesten er bygget på **.NET 10** med **Clean Architecture**, **CQRS (MediatR)**, **OpenIddict** (OAuth2/OIDC), **ASP.NET Core Identity**, **MassTransit** (RabbitMQ) og **Quartz.NET**[cite: 2].
+Autentiserings- og identitetstjeneste for Kjøkkenhylla-plattformen. Tjenesten er bygget på **.NET 10** med **Clean Architecture**, **CQRS (MediatR)**, **OpenIddict** (OAuth2/OIDC), **ASP.NET Core Identity**, **MassTransit** (RabbitMQ) og **Quartz.NET**.
 
 ---
 
 ## 🏗️ Arkitektur og Lagdeling
 
-Applikasjonen følger prinsippene for Clean Architecture for å sikre klar ansvarsfordeling og høy testbarhet[cite: 1]:
+Applikasjonen følger prinsippene for Clean Architecture for å sikre klar ansvarsfordeling og høy testbarhet:
 
-* **API:** HTTP-kontrollere, MassTransit event-consumers, Quartz-bakgrunnsjobber og DI-konfigurasjon[cite: 1].
-* **Application:** CQRS Commands, Queries, Handlers og TokenService[cite: 1].
-* **Domain:** Entiteter, DTO-er, enumer og konfigurasjonsklasser (Options)[cite: 1].
-* **Contracts:** Rene hendelseskontrakter for asynkron meldingsutveksling over bussen[cite: 1].
-* **Persistence:** EF Core datakontekst mot PostgreSQL, ASP.NET Core Identity og OpenIddict-lagring[cite: 1].
+* **API:** HTTP-kontrollere, MassTransit event-consumers, Quartz-bakgrunnsjobber og DI-konfigurasjon.
+* **Application:** CQRS Commands, Queries, Handlers og TokenService.
+* **Domain:** Entiteter, DTO-er, enumer og konfigurasjonsklasser (Options).
+* **Contracts:** Rene hendelseskontrakter for asynkron meldingsutveksling over bussen.
+* **Persistence:** EF Core datakontekst mot PostgreSQL, ASP.NET Core Identity og OpenIddict-lagring.
 
 ---
 
 ## 🚀 Hurtigstart for Lokalutvikling
 
 ### 1. Start Felles Infrastruktur (recipe-infrastructure)
-Lokal infrastruktur (PostgreSQL, RabbitMQ, MongoDB, Seq, Mailpit m.m.) styres sentralt via prosjektet [recipe-infrastructure](https://github.com/theapicat/recipe-infrastructure)[cite: 2].
-Klon og start containerne før du kjører recipe-auth-api[cite: 2]:
+Lokal infrastruktur (PostgreSQL, RabbitMQ, MongoDB, Seq, Mailpit m.m.) styres sentralt via prosjektet [recipe-infrastructure](https://github.com/theapicat/recipe-infrastructure).
+Klon og start containerne før du kjører recipe-auth-api:
 
 ```bash
-git clone [https://github.com/theapicat/recipe-infrastructure.git](https://github.com/theapicat/recipe-infrastructure.git)
+git clone https://github.com/theapicat/recipe-infrastructure.git
 cd recipe-infrastructure
 docker compose up -d
 
@@ -153,9 +153,9 @@ Prosjektets dokumentasjon er modulært oppdelt under `Documentation/` for å gi 
 
 | Dokument | Beskrivelse |
 | --- | --- |
-| **[01-architecture-and-setup.md](https://www.google.com/search?q=/Documentation/01-architecture-and-setup.md)** | Dybdeinnsikt i Clean Architecture-lagene, teknologistakk, konfigurasjon (Options), User Secrets og felles infrastruktur.
-| **[02-endpoints-and-controllers.md](https://www.google.com/search?q=/Documentation/02-endpoints-and-controllers.md)** | REST API-spesifikasjon og endepunktsoversikt for AccountController, AdminController, AuthorizationController og HealthController.
-| **[03-cqrs-and-mediatr.md](https://www.google.com/search?q=/Documentation/03-cqrs-and-mediatr.md)** | Arkitektur for Application-laget med oversikt over alle 28 Command/Query-behandlere, tynne kontrollere og resultat-mønsteret.
-| **[04-events-and-messaging.md](https://www.google.com/search?q=/Documentation/04-events-and-messaging.md)** | Event-drevet kommunikasjon via MassTransit/RabbitMQ. Beskriver InvalidEmailDetectedConsumer (hard bounce), utgående hendelser og kaskadesletting.
-| **[05-openiddict-security-and-jobs.md](https://www.google.com/search?q=/Documentation/05-openiddict-security-and-jobs.md)** | OAuth2/OIDC token-utstedelse (Password & Refresh grant), Google OAuth2 callback-flyt, og Quartz.NET AccountLifecycleJob.
-| **[06-test-strategy.md](https://www.google.com/search?q=/Documentation/06-test-strategy.md)** | Testpyramide og strategi for testprosjektet. Omfatter enhetstesting av MediatR-handlers, event-testing, jobber og integrasjonstester.
+| **[01-architecture-and-setup.md](01-architecture-and-setup.md)** | Dybdeinnsikt i Clean Architecture-lagene, teknologistakk, konfigurasjon (Options), User Secrets og felles infrastruktur.
+| **[02-endpoints-and-controllers.md](02-endpoints-and-controllers.md)** | REST API-spesifikasjon og endepunktsoversikt for AccountController, AdminController, AuthorizationController og HealthController.
+| **[03-cqrs-and-mediatr.md](03-cqrs-and-mediatr.md)** | Arkitektur for Application-laget med oversikt over alle 28 Command/Query-behandlere, tynne kontrollere og resultat-mønsteret.
+| **[04-events-and-messaging.md](04-events-and-messaging.md)** | Event-drevet kommunikasjon via MassTransit/RabbitMQ. Beskriver InvalidEmailDetectedConsumer (hard bounce), utgående hendelser og kaskadesletting.
+| **[05-openiddict-security-and-jobs.md](05-openiddict-security-and-jobs.md)** | OAuth2/OIDC token-utstedelse (Password & Refresh grant), Google OAuth2 callback-flyt, og Quartz.NET AccountLifecycleJob.
+| **[06-test-strategy.md](06-test-strategy.md)** | Testpyramide og strategi for testprosjektet. Omfatter enhetstesting av MediatR-handlers, event-testing, jobber og integrasjonstester.
