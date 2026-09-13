@@ -5,11 +5,17 @@ namespace Application.Mediator.Admin.Commands.UpdateUser;
 
 public class AdminUpdateUserResult : OperationResult
 {
+    public bool IsBadRequest { get; set; }
     public bool IsNotFound { get; set; }
 
     public static AdminUpdateUserResult Success()
     {
         return new AdminUpdateUserResult { IsSuccess = true };
+    }
+
+    public static AdminUpdateUserResult BadRequest(string message)
+    {
+        return new AdminUpdateUserResult { IsSuccess = false, IsBadRequest = true, ErrorMessage = message };
     }
 
     public static AdminUpdateUserResult NotFound(string message = "Bruker ikke funnet.")

@@ -6,5 +6,6 @@ public record AdminUpdateUserCommand(
     string UserId,
     string Email,
     string FirstName,
-    string LastName
+    string LastName,
+    Guid CurrentAdminId
 ) : IRequest<AdminUpdateUserResult>;

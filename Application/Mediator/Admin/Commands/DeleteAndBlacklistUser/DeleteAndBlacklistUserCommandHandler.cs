@@ -27,6 +27,9 @@ public class DeleteAndBlacklistUserCommandHandler(
         var user = await userManager.FindByIdAsync(request.UserId);
         if (user == null) return DeleteAndBlacklistUserResult.NotFound();
 
+        if (await userManager.IsInRoleAsync(user, "Admin"))
+            return DeleteAndBlacklistUserResult.BadRequest("Du kan ikke slette/svarteliste en annen administratorkonto.");
+
         var userId = user.Id;
         var email = user.Email ?? string.Empty;
         var normalizedEmail = email.Trim().ToLowerInvariant();

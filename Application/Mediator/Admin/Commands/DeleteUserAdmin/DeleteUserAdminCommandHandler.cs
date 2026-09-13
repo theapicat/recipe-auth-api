@@ -22,6 +22,9 @@ public class DeleteUserAdminCommandHandler(
         var user = await userManager.FindByIdAsync(request.UserId);
         if (user == null) return DeleteUserAdminResult.NotFound();
 
+        if (await userManager.IsInRoleAsync(user, "Admin"))
+            return DeleteUserAdminResult.BadRequest("Du kan ikke slette en annen administratorkonto.");
+
         var userId = user.Id;
         var email = user.Email ?? string.Empty;
         var fullName = $"{user.FirstName} {user.LastName}".Trim();

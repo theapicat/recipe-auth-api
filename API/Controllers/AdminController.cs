@@ -53,17 +53,25 @@ public class AdminController(IMediator mediator) : ControllerBase
     [Consumes("application/json")]
     public async Task<IActionResult> UpdateUser([FromBody] AdminUpdateUserRequest request)
     {
+        var currentAdminId = GetCurrentAdminId();
+        if (currentAdminId == null)
+            return Unauthorized(new { Message = "Ugyldig eller manglende administratortoken." });
+
         var command = new AdminUpdateUserCommand(
             request.UserId,
             request.Email,
             request.FirstName,
-            request.LastName
+            request.LastName,
+            currentAdminId.Value
         );
 
         var result = await mediator.Send(command);
 
         if (!result.IsSuccess)
         {
+            if (result.IsBadRequest)
+                return BadRequest(new { Message = result.ErrorMessage });
+
             if (result.IsNotFound)
                 return NotFound(new { Message = result.ErrorMessage });
 

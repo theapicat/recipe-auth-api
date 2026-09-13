@@ -16,6 +16,13 @@ public class AdminUpdateUserCommandHandler(
         var user = await userManager.FindByIdAsync(request.UserId);
         if (user == null) return AdminUpdateUserResult.NotFound();
 
+        if (request.CurrentAdminId == user.Id)
+            return AdminUpdateUserResult.BadRequest(
+                "Du kan ikke endre din egen administratorkonto via administratorpanelet.");
+
+        if (await userManager.IsInRoleAsync(user, "Admin"))
+            return AdminUpdateUserResult.BadRequest("Du kan ikke endre en annen administratorkonto.");
+
         var oldEmail = user.Email ?? string.Empty;
         var emailChanged = !string.Equals(user.Email, request.Email, StringComparison.OrdinalIgnoreCase);
 
