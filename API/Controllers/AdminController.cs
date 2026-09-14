@@ -25,7 +25,7 @@ namespace API.Controllers;
 
 [ApiController]
 [Route("api/auth/admin")]
-[Authorize(AuthenticationSchemes = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme, Roles = "Admin")]
+[Authorize(AuthenticationSchemes = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme, Roles = "admin")]
 public class AdminController(IMediator mediator) : ControllerBase
 {
     // --- 1. HENT BRUKERLISTE ---

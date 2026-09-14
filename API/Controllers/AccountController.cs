@@ -323,7 +323,8 @@ public class AccountController(
     public async Task<IActionResult> ExternalLoginCallback([FromQuery] string? remoteError = null)
     {
         var info = await signInManager.GetExternalLoginInfoAsync();
-        var command = new ProcessGoogleCallbackCommand(info, remoteError);
+        var baseUri = new Uri($"{Request.Scheme}://{Request.Host}");
+        var command = new ProcessGoogleCallbackCommand(info, remoteError, baseUri);
 
         var result = await mediator.Send(command);
 

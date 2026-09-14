@@ -20,7 +20,7 @@ public class GetUserDetailsQueryHandlerTests : IDisposable
 
         result.IsSuccess.ShouldBeTrue();
         result.Details!.Email.ShouldBe("detaljer@test.local");
-        result.Details.Role.ShouldBe("User");
+        result.Details.Role.ShouldBe("user");
         result.Details.HasPassword.ShouldBeTrue();
     }
 

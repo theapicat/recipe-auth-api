@@ -18,7 +18,7 @@ public class DeleteAccountCommandHandler(
             return DeleteAccountResult.Failure("Bruker ikke funnet.");
 
         // Beskyttelse mot sletting av systemadministrator
-        if (await userManager.IsInRoleAsync(user, "Admin"))
+        if (await userManager.IsInRoleAsync(user, "admin"))
             return DeleteAccountResult.Forbidden("Systemadministrator kan ikke slettes via API-et.");
 
         var userId = user.Id;

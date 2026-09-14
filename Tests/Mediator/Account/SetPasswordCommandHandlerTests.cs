@@ -24,7 +24,7 @@ public class SetPasswordCommandHandlerTests : IDisposable
         };
         var createResult = await _harness.UserManager.CreateAsync(user); // Uten passord, som Google-registrering
         createResult.Succeeded.ShouldBeTrue();
-        await _harness.UserManager.AddToRoleAsync(user, "User");
+        await _harness.UserManager.AddToRoleAsync(user, "user");
         return user;
     }
 

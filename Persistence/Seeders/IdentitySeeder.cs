@@ -19,12 +19,23 @@ public static class IdentitySeeder
         var adminOptions = scope.ServiceProvider.GetRequiredService<IOptions<AdminUserOptions>>().Value;
         var env = scope.ServiceProvider.GetRequiredService<IHostEnvironment>();
 
-        // 1. Opprett roller
-        string[] roles = ["Admin", "User"];
+        // 1. Opprett roller (små bokstaver — se BACKEND_REQUIREMENTS.md pkt. 1).
+        // Bruker FindByNameAsync + rename i stedet for RoleExistsAsync, slik at eksisterende
+        // databaser som allerede har "Admin"/"User" fra før blir selv-helbredet til lowercase
+        // ved neste oppstart, i stedet for å kreve en egen migrasjon.
+        string[] roles = ["admin", "user"];
         foreach (var roleName in roles)
         {
-            if (!await roleManager.RoleExistsAsync(roleName))
+            var existingRole = await roleManager.FindByNameAsync(roleName);
+            if (existingRole is null)
+            {
                 await roleManager.CreateAsync(new IdentityRole<Guid>(roleName));
+            }
+            else if (existingRole.Name != roleName)
+            {
+                existingRole.Name = roleName;
+                await roleManager.UpdateAsync(existingRole);
+            }
         }
 
         // 2. Opprett Admin-bruker
@@ -55,7 +66,7 @@ public static class IdentitySeeder
             var result = await userManager.CreateAsync(adminUser, adminPassword);
             if (result.Succeeded)
             {
-                await userManager.AddToRoleAsync(adminUser, "Admin");
+                await userManager.AddToRoleAsync(adminUser, "admin");
             }
             else
             {
@@ -150,7 +161,7 @@ public static class IdentitySeeder
                 result = await userManager.CreateAsync(user);
                 if (result.Succeeded)
                 {
-                    await userManager.AddToRoleAsync(user, "User");
+                    await userManager.AddToRoleAsync(user, "user");
                     await userManager.AddLoginAsync(user,
                         new UserLoginInfo("Google", $"google-dev-key-{user.Email}", "Google"));
                 }
@@ -160,7 +171,7 @@ public static class IdentitySeeder
                 var password = string.IsNullOrWhiteSpace(seedUser.Password) ? "DevUser123!" : seedUser.Password;
                 result = await userManager.CreateAsync(user, password);
                 if (result.Succeeded)
-                    await userManager.AddToRoleAsync(user, "User");
+                    await userManager.AddToRoleAsync(user, "user");
             }
 
             if (!result.Succeeded)

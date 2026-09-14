@@ -78,8 +78,8 @@ public sealed class HandlerTestHarness : IDisposable
         RoleManager = _scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
 
         // Rollene handlerne forventer å finne (speiler IdentitySeeder)
-        RoleManager.CreateAsync(new IdentityRole<Guid>("Admin")).GetAwaiter().GetResult();
-        RoleManager.CreateAsync(new IdentityRole<Guid>("User")).GetAwaiter().GetResult();
+        RoleManager.CreateAsync(new IdentityRole<Guid>("admin")).GetAwaiter().GetResult();
+        RoleManager.CreateAsync(new IdentityRole<Guid>("user")).GetAwaiter().GetResult();
     }
 
     /// <summary>Oppretter en testbruker med passord og gitt rolle. Standard: bekreftet e-post, vanlig bruker.</summary>
@@ -105,7 +105,7 @@ public sealed class HandlerTestHarness : IDisposable
             throw new InvalidOperationException(
                 $"Kunne ikke opprette testbruker: {string.Join(", ", result.Errors.Select(e => e.Description))}");
 
-        await UserManager.AddToRoleAsync(user, isAdmin ? "Admin" : "User");
+        await UserManager.AddToRoleAsync(user, isAdmin ? "admin" : "user");
         return user;
     }
 

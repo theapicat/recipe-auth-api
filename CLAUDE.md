@@ -30,7 +30,7 @@ Database (migrations project is `Persistence`, startup project is `API`):
 dotnet ef database update --project Persistence --startup-project API
 dotnet ef migrations add <Name> --project Persistence --startup-project API
 ```
-On startup, `Program.cs` auto-runs `IdentitySeeder` (creates `Admin`/`User` roles and the initial admin account from `AdminUser` config) and registers `OpenIddictSeeder` as a hosted service (creates the `recipe-web-app` and `recipe-mobile-app` OAuth2 clients).
+On startup, `Program.cs` auto-runs `IdentitySeeder` (creates `admin`/`user` roles — lowercase, see Auth flow below — and the initial admin account from `AdminUser` config; self-heals any pre-existing `Admin`/`User` rows to lowercase) and registers `OpenIddictSeeder` as a hosted service (creates the `recipe-web-app` and `recipe-mobile-app` OAuth2 clients, and self-heals missing permissions like `Endpoints.Revocation` onto already-seeded clients).
 
 Build / run:
 ```bash
@@ -56,7 +56,7 @@ Tests:
 dotnet test Tests/Tests.csproj
 dotnet test Tests/Tests.csproj --filter "FullyQualifiedName~RegisterUserCommandHandler"
 ```
-Note: `Tests.csproj` is currently a bare skeleton (no test files, no project references yet), even though `Documentation/06-test-strategy.md` describes a full 4-layer strategy (MediatR handlers with mocked dependencies + EF Core InMemory; MassTransit consumers via its in-memory test harness; Quartz job logic with time-shifted user state; controller/OpenIddict integration tests via `WebApplicationFactory`). Intended tooling per that doc: xUnit, NSubstitute, Shouldly. When adding the first real tests, wire up `ProjectReference`s to `Application`/`Persistence`/`API` etc.
+`Documentation/06-test-strategy.md`'s 4-layer strategy is implemented: `Tests/Mediator/{Account,Admin,Authorization}` (handlers against a real `UserManager`/`SignInManager`/`RoleManager` over SQLite in-memory via `Tests/Support/HandlerTestHarness.cs` — deliberately not mocked, see that file's doc comment for why), `Tests/Consumers` (MassTransit in-memory test harness), `Tests/Jobs` (`AccountLifecycleJob` with time-shifted user state), and `Tests/Integration` (`WebApplicationFactory<Program>` via `Tests/Support/AuthApiWebApplicationFactory.cs`, running the real startup pipeline — Identity, OpenIddict, seeders — against SQLite in-memory; this is the only layer that exercises OpenIddict's actual token-issuance/revocation pipeline end-to-end, which mocked handler tests can't do). Tooling: xUnit, NSubstitute, Shouldly.
 
 ## Architecture
 
@@ -74,9 +74,12 @@ Business errors are never thrown as exceptions. Every handler returns a `<Featur
 
 ### Auth flow
 
-- Token issuance goes through `AuthorizationController` → `/api/auth/connect/token`, handling `grant_type=password` (`PasswordGrantCommandHandler`) and `grant_type=refresh_token` (`RefreshTokenGrantCommandHandler`). Both ultimately build a fresh `ClaimsPrincipal` via `TokenService` so role/claim changes are picked up on every reissue.
-- Google OAuth2 is handled by `AccountController`'s `/external-login` (Challenge) and `/external-login-callback` endpoints, which delegate to `ProcessGoogleCallbackCommandHandler`: checks the blacklist first, links Google to an existing account or auto-registers a new one (`EmailConfirmed = true` since Google verified it already), then issues tokens and redirects to the frontend.
+- Token issuance goes through `AuthorizationController` → `/api/auth/connect/token`, handling `grant_type=password` (`PasswordGrantCommandHandler`) and `grant_type=refresh_token` (`RefreshTokenGrantCommandHandler`). Both ultimately build a fresh `ClaimsPrincipal` via `TokenService.CreateClaimsPrincipalAsync` so role/claim changes are picked up on every reissue, then call `SignIn()` inside the live `/connect/token` request, letting OpenIddict's own pipeline generate and persist both tokens.
+- Google OAuth2 is handled by `AccountController`'s `/external-login` (Challenge) and `/external-login-callback` endpoints, which delegate to `ProcessGoogleCallbackCommandHandler`: checks the blacklist first, links Google to an existing account or auto-registers a new one (`EmailConfirmed = true` since Google verified it already), then issues tokens via `TokenService.IssueTokenPairAsync` and redirects to the frontend with `access_token`/`refresh_token` as raw query params (not an authorization code — the frontend contract expects this).
+  Since this callback is a plain MVC action rather than a live `/connect/token` request, `IssueTokenPairAsync` cannot use `SignIn()` the way the password/refresh-grant flow does — there's no ambient OpenIddict server transaction to hang it off. Instead it drives OpenIddict's internal `OpenIddict.Server` pipeline directly (`IOpenIddictServerFactory.CreateTransactionAsync()` + `IOpenIddictServerDispatcher.DispatchAsync(new ProcessSignInContext(...))`), manually supplying what the ASP.NET Core host would otherwise populate from the live request: `transaction.BaseUri` (issuer resolution), `transaction.Response`, `transaction.Request.ClientId` (so the token is tied to `recipe-web-app` for later revocation), and a low-priority fallback `ApplyTokenResponseContext` handler registered in `OpenIddictExtensions.cs` (the built-in ASP.NET Core one only fires when a real `HttpContext` is attached to the transaction, which this synthetic one never has). This produces a genuine, OpenIddict-persisted, revocable refresh token identical in shape to a password-grant-issued one — the previous implementation hand-rolled a JWT and inserted a raw GUID as the token's `Payload`, which was never a valid redeemable OpenIddict token.
+- `POST /api/auth/connect/revoke` (RFC 7009) revokes a refresh token; OpenIddict handles it entirely internally once the endpoint URI is registered (no controller code, no passthrough exists for this endpoint). It invalidates the refresh token permanently but — since access tokens are self-contained JWTs validated locally, not reference tokens — does **not** invalidate an already-issued access token before its natural ~60-minute expiry; that's an accepted exposure window, not an oversight. Called best-effort by the frontend's logout route.
 - JWT signing is HMAC-SHA256 via `JWT:SecretKey`; access tokens default to 60 min, refresh tokens to 14 days (`JwtOptions`). Identity requires 8+ char passwords with a digit and uppercase, no special-char requirement; email is the unique identifier.
+- Role values are lowercase everywhere a role leaves this service: the `role` claim in JWTs, the `role` field in `/account/me`, and the `role` query param on the Google-callback redirect. Roles are stored in the DB as `admin`/`user` (lowercase) too — `IdentitySeeder` self-heals pre-existing `Admin`/`User` rows on startup, so no manual migration is needed. `[Authorize(Roles = "admin")]` on `AdminController` and every `IsInRoleAsync(user, "admin")` check must stay lowercase to match.
 - Current-user extraction in `AccountController` reads `ClaimTypes.NameIdentifier`, then the OpenIddict subject claim, then falls back to an `X-User-Id` header — that header fallback assumes the API Gateway always strips/overwrites it before requests reach this service.
 
 ### Email blacklist
@@ -89,7 +92,7 @@ Commands that change account state publish events via `IPublishEndpoint` (MassTr
 
 ### `AccountLifecycleJob` (Quartz, daily at 03:00 by default via `AccountLifecycle:CronSchedule`)
 
-Two independent timelines, both skipping users in the `Admin` role, driven by `AccountLifecycleOptions`:
+Two independent timelines, both skipping users in the `admin` role, driven by `AccountLifecycleOptions`:
 - **Unconfirmed email:** reminder at 7 days → lockout at 14 days → permanent deletion at 30 days.
 - **Inactivity** (based on `LastLoginAt ?? CreatedAt`): warning at 6 months → lockout at 1 year → deletion 30 days after that lockout.
 

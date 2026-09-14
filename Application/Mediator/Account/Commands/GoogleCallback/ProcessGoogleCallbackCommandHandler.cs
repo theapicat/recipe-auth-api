@@ -8,7 +8,6 @@ using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using OpenIddict.Abstractions;
 using Persistence.Context;
 
 namespace Application.Mediator.Account.Commands.GoogleCallback;
@@ -19,9 +18,7 @@ public class ProcessGoogleCallbackCommandHandler(
     ApplicationDbContext dbContext,
     IPublishEndpoint publishEndpoint,
     IOptions<AppSettings> appSettings,
-    IOptions<JwtOptions> jwtOptions,
-    ITokenService tokenService,
-    IOpenIddictTokenManager tokenManager)
+    ITokenService tokenService)
     : IRequestHandler<ProcessGoogleCallbackCommand, ProcessGoogleCallbackResult>
 {
     public async Task<ProcessGoogleCallbackResult> Handle(ProcessGoogleCallbackCommand request,
@@ -113,26 +110,10 @@ public class ProcessGoogleCallbackCommandHandler(
         var roles = await userManager.GetRolesAsync(user);
         var hasPassword = await userManager.HasPasswordAsync(user);
 
-        // Generer JWT Access Token
-        var accessToken = await tokenService.GenerateAccessTokenAsync(user);
-
-        // Generer et registrert OpenIddict Refresh Token i databasen
-        var refreshTokenValue = Guid.NewGuid().ToString("N");
-        var refreshLifetimeDays = jwtOptions.Value.RefreshTokenLifetimeInDays > 0 
-            ? jwtOptions.Value.RefreshTokenLifetimeInDays 
-            : 14;
-
-        var tokenDescriptor = new OpenIddictTokenDescriptor
-        {
-            Subject = user.Id.ToString(),
-            Type = OpenIddictConstants.TokenTypeHints.RefreshToken,
-            Status = OpenIddictConstants.Statuses.Valid,
-            CreationDate = DateTimeOffset.UtcNow,
-            ExpirationDate = DateTimeOffset.UtcNow.AddDays(refreshLifetimeDays),
-            Payload = refreshTokenValue
-        };
-
-        await tokenManager.CreateAsync(tokenDescriptor, cancellationToken);
+        // Utsteder et ekte, OpenIddict-genererte og -lagrede access-/refresh-token-par via den
+        // samme pipelinen password-/refresh-grant-flyten bruker (se TokenService.IssueTokenPairAsync)
+        // — refresh-tokenet er dermed korrekt lagret og revokerbart via POST /connect/revoke.
+        var (accessToken, refreshTokenValue) = await tokenService.IssueTokenPairAsync(user, request.BaseUri);
 
         // Bygg callback-URL med gyldig JWT token og escaper parametere
         var callbackUrl = $"{frontendUrl}/api/auth/google-callback" +

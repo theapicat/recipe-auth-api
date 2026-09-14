@@ -20,7 +20,7 @@ public class AdminUpdateUserCommandHandler(
             return AdminUpdateUserResult.BadRequest(
                 "Du kan ikke endre din egen administratorkonto via administratorpanelet.");
 
-        if (await userManager.IsInRoleAsync(user, "Admin"))
+        if (await userManager.IsInRoleAsync(user, "admin"))
             return AdminUpdateUserResult.BadRequest("Du kan ikke endre en annen administratorkonto.");
 
         var oldEmail = user.Email ?? string.Empty;

@@ -9,7 +9,6 @@ using MassTransit;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using NSubstitute;
-using OpenIddict.Abstractions;
 using Persistence.Context;
 using Shouldly;
 using Tests.Support;
@@ -21,19 +20,17 @@ public class ProcessGoogleCallbackCommandHandlerTests : IDisposable
     private readonly HandlerTestHarness _harness = new();
     private readonly IPublishEndpoint _publishEndpoint = Substitute.For<IPublishEndpoint>();
     private readonly ITokenService _tokenService = Substitute.For<ITokenService>();
-    private readonly IOpenIddictTokenManager _tokenManager = Substitute.For<IOpenIddictTokenManager>();
     private readonly IOptions<AppSettings> _appSettings = Options.Create(new AppSettings { FrontendUrl = "http://localhost:3000" });
-    private readonly IOptions<JwtOptions> _jwtOptions = Options.Create(new JwtOptions { RefreshTokenLifetimeInDays = 14 });
+    private static readonly Uri TestBaseUri = new("https://localhost:7001");
 
     private ProcessGoogleCallbackCommandHandler CreateHandler() => new(
         _harness.UserManager, _harness.SignInManager, _harness.DbContext, _publishEndpoint,
-        _appSettings, _jwtOptions, _tokenService, _tokenManager);
+        _appSettings, _tokenService);
 
     public ProcessGoogleCallbackCommandHandlerTests()
     {
-        _tokenService.GenerateAccessTokenAsync(Arg.Any<ApplicationUser>()).Returns("fake-access-token");
-        _tokenManager.CreateAsync(Arg.Any<OpenIddictTokenDescriptor>(), Arg.Any<CancellationToken>())
-            .Returns(new object());
+        _tokenService.IssueTokenPairAsync(Arg.Any<ApplicationUser>(), Arg.Any<Uri>())
+            .Returns(("fake-access-token", "fake-refresh-token"));
     }
 
     private static ExternalLoginInfo GoogleInfo(string email, string providerKey = "google-sub-123",
@@ -59,7 +56,7 @@ public class ProcessGoogleCallbackCommandHandlerTests : IDisposable
 
         var handler = CreateHandler();
         var result = await handler.Handle(
-            new ProcessGoogleCallbackCommand(GoogleInfo("svartelistet@test.local"), null), CancellationToken.None);
+            new ProcessGoogleCallbackCommand(GoogleInfo("svartelistet@test.local"), null, TestBaseUri), CancellationToken.None);
 
         result.IsSuccess.ShouldBeFalse();
         result.RedirectUrl!.ShouldContain("error=blacklisted");
@@ -81,7 +78,7 @@ public class ProcessGoogleCallbackCommandHandlerTests : IDisposable
 
         var handler = CreateHandler();
         var result = await handler.Handle(
-            new ProcessGoogleCallbackCommand(GoogleInfo("noen@svartedomene.test"), null), CancellationToken.None);
+            new ProcessGoogleCallbackCommand(GoogleInfo("noen@svartedomene.test"), null, TestBaseUri), CancellationToken.None);
 
         result.IsSuccess.ShouldBeFalse();
         (await _harness.UserManager.FindByEmailAsync("noen@svartedomene.test")).ShouldBeNull();
@@ -93,7 +90,7 @@ public class ProcessGoogleCallbackCommandHandlerTests : IDisposable
         var handler = CreateHandler();
 
         var result = await handler.Handle(
-            new ProcessGoogleCallbackCommand(null, "access_denied"), CancellationToken.None);
+            new ProcessGoogleCallbackCommand(null, "access_denied", TestBaseUri), CancellationToken.None);
 
         result.IsSuccess.ShouldBeFalse();
         result.RedirectUrl!.ShouldContain("error=access_denied");
@@ -105,7 +102,7 @@ public class ProcessGoogleCallbackCommandHandlerTests : IDisposable
         var handler = CreateHandler();
 
         var result = await handler.Handle(
-            new ProcessGoogleCallbackCommand(GoogleInfo("nygoogle@test.local"), null), CancellationToken.None);
+            new ProcessGoogleCallbackCommand(GoogleInfo("nygoogle@test.local"), null, TestBaseUri), CancellationToken.None);
 
         result.IsSuccess.ShouldBeTrue();
 
@@ -127,7 +124,7 @@ public class ProcessGoogleCallbackCommandHandlerTests : IDisposable
 
         var handler = CreateHandler();
         var result = await handler.Handle(
-            new ProcessGoogleCallbackCommand(GoogleInfo("sperretgoogle@test.local"), null), CancellationToken.None);
+            new ProcessGoogleCallbackCommand(GoogleInfo("sperretgoogle@test.local"), null, TestBaseUri), CancellationToken.None);
 
         result.IsSuccess.ShouldBeFalse();
         result.RedirectUrl!.ShouldContain("error=account_locked");
@@ -140,7 +137,7 @@ public class ProcessGoogleCallbackCommandHandlerTests : IDisposable
         var handler = CreateHandler();
 
         var result = await handler.Handle(
-            new ProcessGoogleCallbackCommand(GoogleInfo("koblesammen@test.local"), null), CancellationToken.None);
+            new ProcessGoogleCallbackCommand(GoogleInfo("koblesammen@test.local"), null, TestBaseUri), CancellationToken.None);
 
         result.IsSuccess.ShouldBeTrue();
         var logins = await _harness.UserManager.GetLoginsAsync(user);

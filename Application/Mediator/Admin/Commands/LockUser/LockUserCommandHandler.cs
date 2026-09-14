@@ -23,7 +23,7 @@ public class LockUserCommandHandler(
         var user = await userManager.FindByIdAsync(request.UserId);
         if (user == null) return LockUserResult.NotFound();
 
-        if (await userManager.IsInRoleAsync(user, "Admin"))
+        if (await userManager.IsInRoleAsync(user, "admin"))
             return LockUserResult.BadRequest("Du kan ikke sperre en annen administratorkonto.");
 
         var reasonDetails = request.ReasonDetails ?? "Kontoen ble sperret av en administrator.";

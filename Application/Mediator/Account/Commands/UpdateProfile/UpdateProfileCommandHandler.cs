@@ -16,7 +16,7 @@ public class UpdateProfileCommandHandler(UserManager<ApplicationUser> userManage
             return UpdateProfileResult.Failure("Bruker ikke funnet.");
 
         // Beskyttelse mot endring av systemadministrator
-        if (await userManager.IsInRoleAsync(user, "Admin"))
+        if (await userManager.IsInRoleAsync(user, "admin"))
             return UpdateProfileResult.Forbidden(
                 "Profilinformasjonen til systemadministrator er låst og kan ikke endres.");
 

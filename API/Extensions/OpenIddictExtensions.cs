@@ -2,7 +2,9 @@ using System.Text;
 using Domain.Options;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
+using OpenIddict.Server;
 using Persistence.Context;
+using static OpenIddict.Server.OpenIddictServerEvents;
 
 namespace API.Extensions;
 
@@ -46,6 +48,7 @@ public static class OpenIddictExtensions
             .AddServer(options =>
             {
                 options.SetTokenEndpointUris("/api/auth/connect/token");
+                options.SetRevocationEndpointUris("/api/auth/connect/revoke");
 
                 options.AllowPasswordFlow()
                     .AllowRefreshTokenFlow();
@@ -63,6 +66,26 @@ public static class OpenIddictExtensions
                 options.UseAspNetCore()
                     .EnableTokenEndpointPassthrough()
                     .DisableTransportSecurityRequirement();
+
+                // TokenService.IssueTokenPairAsync (Google-callback-flyten) dispatcher en
+                // ProcessSignInContext direkte via IOpenIddictServerDispatcher, uten en levende
+                // HTTP-forespørsel. OpenIddicts ASP.NET Core-integrasjon skriver normalt selve
+                // token-responsen til HttpContext her, men den handleren er filtrert til kun å
+                // kjøre når en HTTP-forespørsel faktisk er tilknyttet transaksjonen — noe vår
+                // syntetiske transaksjon aldri har. Uten en fallback kaster OpenIddict "The token
+                // response was not correctly applied" (nøyaktig slik unntaksmeldingen selv ber om
+                // å bli løst — se ApplyTokenResponse<TContext> i OpenIddict.Server). Kjøres sist
+                // (int.MaxValue) og rører ikke ekte HTTP-forespørsler, som allerede er markert
+                // håndtert av ASP.NET Core-handleren innen denne når frem.
+                options.AddEventHandler<ApplyTokenResponseContext>(builder => builder
+                    .UseInlineHandler(context =>
+                    {
+                        if (!context.IsRequestHandled && !context.IsRequestSkipped)
+                            context.HandleRequest();
+
+                        return default;
+                    })
+                    .SetOrder(int.MaxValue));
             })
             .AddValidation(options =>
             {

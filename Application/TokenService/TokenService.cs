@@ -7,13 +7,18 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using OpenIddict.Abstractions;
+using OpenIddict.Server;
+using static OpenIddict.Server.OpenIddictServerEvents;
 using Persistence.Context;
 
 namespace Application.TokenService;
 
 public class TokenService(
     UserManager<ApplicationUser> userManager,
-    IOptions<JwtOptions> jwtOptions) : ITokenService
+    IOptions<JwtOptions> jwtOptions,
+    IOptions<AppSettings> appSettings,
+    IOpenIddictServerFactory serverFactory,
+    IOpenIddictServerDispatcher serverDispatcher) : ITokenService
 {
     private readonly JwtOptions _jwt = jwtOptions.Value;
 
@@ -84,5 +89,50 @@ public class TokenService(
 
         var handler = new JsonWebTokenHandler();
         return handler.CreateToken(tokenDescriptor);
+    }
+
+    public async Task<(string AccessToken, string RefreshToken)> IssueTokenPairAsync(ApplicationUser user, Uri baseUri)
+    {
+        var principal = await CreateClaimsPrincipalAsync(user);
+
+        var transaction = await serverFactory.CreateTransactionAsync();
+        transaction.EndpointType = OpenIddictServerEndpointType.Token;
+        // Uten en BaseUri (og uten Options.Issuer konfigurert) kaster OpenIddicts interne
+        // PrepareAccessTokenPrincipal-handler "The issuer cannot be retrieved...", siden den ikke
+        // har noen ekte HTTP-forespørsel å utlede issueren fra slik den ellers ville hatt for en
+        // vanlig /connect/token-forespørsel.
+        transaction.BaseUri = baseUri;
+        transaction.Request = new OpenIddictRequest
+        {
+            GrantType = OpenIddictConstants.GrantTypes.Password,
+            // Knytter tokenet til recipe-web-app, slik at et senere POST /connect/revoke med
+            // client_id=recipe-web-app (jf. BACKEND_REQUIREMENTS.md pkt. 2) finner samme klient
+            // som tokenet ble utstedt til.
+            ClientId = appSettings.Value.WebAppClientId
+        };
+        // ProcessSignInContext.Response leser fra transaction.Response uten null-sjekk — for en ekte
+        // HTTP-forespørsel fyller OpenIddicts ASP.NET Core-vert denne inn tidlig i pipelinen. Her må vi
+        // gjøre det selv, ellers kaster AttachSignInParameters en NullReferenceException når den prøver
+        // å skrive access-/refresh-tokenet inn i responsen.
+        transaction.Response = new OpenIddictResponse();
+
+        var context = new ProcessSignInContext(transaction)
+        {
+            Principal = principal,
+            AccessTokenPrincipal = principal,
+            RefreshTokenPrincipal = principal,
+            GenerateAccessToken = true,
+            IncludeAccessToken = true,
+            GenerateRefreshToken = true,
+            IncludeRefreshToken = true
+        };
+
+        await serverDispatcher.DispatchAsync(context);
+
+        if (string.IsNullOrEmpty(context.AccessToken) || string.IsNullOrEmpty(context.RefreshToken))
+            throw new InvalidOperationException(
+                "OpenIddict genererte ikke access-/refresh-token for Google-innloggingen.");
+
+        return (context.AccessToken, context.RefreshToken);
     }
 }

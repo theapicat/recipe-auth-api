@@ -275,7 +275,7 @@ public class AccountLifecycleJob(
     {
         return dbContext.UserRoles
             .Join(
-                dbContext.Roles.Where(r => r.Name == "Admin"),
+                dbContext.Roles.Where(r => r.Name == "admin"),
                 ur => ur.RoleId,
                 r => r.Id,
                 (ur, r) => ur.UserId

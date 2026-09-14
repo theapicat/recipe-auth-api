@@ -54,10 +54,10 @@ dotnet ef database update --project Persistence --startup-project API
 
 ```
 
-* **IdentitySeeder:** Oppretter standard roller (`Admin`, `User`) og en initial admin-konto (`admin@kjoekkenhylla.local`).
+* **IdentitySeeder:** Oppretter standard roller (`admin`, `user` — alltid små bokstaver) og en initial admin-konto (`admin@kjoekkenhylla.local`). Retter automatisk opp eventuelle eldre `Admin`/`User`-rader til lowercase ved oppstart.
 
 
-* **OpenIddictSeeder:** Oppretter godkjente OAuth2-klienter (`recipe-web-app` og `recipe-mobile-app`).
+* **OpenIddictSeeder:** Oppretter godkjente OAuth2-klienter (`recipe-web-app` og `recipe-mobile-app`) og legger til manglende permissions (f.eks. `Endpoints.Revocation`) på klienter som allerede finnes fra før.
 
 
 
@@ -110,7 +110,7 @@ All innkommende trafikk rutes gjennom API Gateway med prefikset `/api/auth/*`. K
 
 Prosjektets testsuite ligger under `Tests/` og følger en firelags testpyramide:
 
-1. **Enhetstester (MediatR Handlers):** Testes i full isolasjon mot EF Core In-Memory database med NSubstitute-mocker for eksterne avhengigheter.
+1. **Enhetstester (MediatR Handlers):** Kjøres mot en ekte `UserManager`/`SignInManager`/`RoleManager` over en SQLite in-memory-database (ikke EF Core In-Memory, se testverktøy under), med NSubstitute-mocker kun for rene grensesnitt (`IPublishEndpoint`, `ITokenService`, m.fl.).
 
 
 2. **Consumer-tester (MassTransit):** Verifisering av hendelseshåndtering (f.eks. `InvalidEmailDetectedConsumer`) via MassTransit In-Memory Test Harness.
@@ -119,7 +119,7 @@ Prosjektets testsuite ligger under `Tests/` og følger en firelags testpyramide:
 3. **Bakgrunnsjobber (Quartz.NET):** Verifisering av livsløpsregler i `AccountLifecycleJob` med tidsmanipulerte kontoer.
 
 
-4. **API- og Integrasjonstester:** End-to-end verifisering av HTTP-pipeline, OpenIddict token-utstedelse og autorisasjon med `WebApplicationFactory`.
+4. **API- og Integrasjonstester:** End-to-end verifisering av HTTP-pipeline, OpenIddict token-utstedelse/-fornyelse/-inndragelse og autorisasjon med `WebApplicationFactory` mot den fullt oppstartede verten — det eneste laget som faktisk kjører OpenIddicts interne pipeline, og dermed det eneste som kan fange feil der mockede handler-tester ikke kan.
 
 
 
@@ -131,7 +131,7 @@ Prosjektets testsuite ligger under `Tests/` og følger en firelags testpyramide:
 * **NSubstitute & Shouldly:** Mocking og ekspressive assertions.
 
 
-* **MassTransit Test Framework & EF Core In-Memory:** In-memory testmiljøer.
+* **MassTransit Test Framework & SQLite in-memory (`Microsoft.EntityFrameworkCore.Sqlite`):** In-memory testmiljøer — ekte relasjonell semantikk uten Docker-avhengighet.
 
 
 * **Microsoft.AspNetCore.Mvc.Testing:** `WebApplicationFactory` for integrasjonstester.
